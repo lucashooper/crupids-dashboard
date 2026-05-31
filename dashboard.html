@@ -2022,6 +2022,12 @@
     background: rgba(107,227,164,0.65);
     flex-shrink: 0;
   }
+  .reflection-bullet-dot--struggle {
+    background: rgba(226, 93, 122, 0.85);
+  }
+  .reflection-field[data-reflection-field="struggles"] .reflection-bullet-input:focus {
+    border-color: rgba(226, 93, 122, 0.35);
+  }
   .reflection-bullet-input {
     flex: 1;
     padding: 10px 12px;
@@ -2585,6 +2591,11 @@ let dayStartTime = null;
 let dayEndTime = null;
 let reflectionViewDate = null;
 let reflectionDraftTimer = null;
+let reflectionForceEdit = false;
+
+function emptyReflectionForm() {
+  return { wins: [], struggles: [], tomorrow: [], summary: '' };
+}
 
 function priorityLevel(g) {
   const p = g && g.priority;
@@ -4495,7 +4506,7 @@ function renderReflectionBullets(field, items) {
     const li = document.createElement('li');
     li.className = 'reflection-bullet-row';
     const dot = document.createElement('span');
-    dot.className = 'reflection-bullet-dot';
+    dot.className = 'reflection-bullet-dot' + (field === 'struggles' ? ' reflection-bullet-dot--struggle' : '');
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'reflection-bullet-input';
@@ -4596,13 +4607,16 @@ function buildReflectionHistoryBody(data) {
   return body;
 }
 
-function updateReflectionStatus(data) {
+function updateReflectionStatus(data, { viewingTodaySaved = false } = {}) {
   const status = document.getElementById('reflectionStatus');
   const today = getActiveDateString();
   const viewing = reflectionViewDate || today;
   if (!status) return;
   status.classList.remove('is-saved', 'is-complete');
-  if (data.completedAt) {
+  if (viewingTodaySaved && data.completedAt) {
+    status.textContent = `Saved · ${new Date(data.completedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} — see Past Reflections below. Tap Edit to change.`;
+    status.classList.add('is-complete');
+  } else if (data.completedAt) {
     status.textContent = viewing === today
       ? `Saved · ${new Date(data.completedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
       : `Saved entry for ${formatDate(viewing)}`;
@@ -4624,12 +4638,15 @@ function loadReflection() {
     isToday ? `Today — ${formatDate(today)}` : formatDate(viewing);
   document.getElementById('reflectionBackToday')?.classList.toggle('hidden', isToday);
   document.getElementById('reflectionModeHint').textContent = isToday
-    ? 'Add quick bullet points, then save when you are done. Tomorrow opens a fresh page.'
+    ? (getReflection(today).completedAt && !reflectionForceEdit
+        ? 'Today\'s reflection is saved below. The form clears so you can start fresh tomorrow.'
+        : 'Add quick bullet points, then save when you are done. Tomorrow opens a fresh page.')
     : `Viewing ${formatDate(viewing)}. Edit and save, or go back to today for a new entry.`;
 
   const data = getReflection(viewing);
-  populateReflectionForm(data);
-  updateReflectionStatus(data);
+  const showEmptyTodayForm = isToday && data.completedAt && !reflectionForceEdit;
+  populateReflectionForm(showEmptyTodayForm ? emptyReflectionForm() : data);
+  updateReflectionStatus(data, { viewingTodaySaved: showEmptyTodayForm });
 
   const hist = document.getElementById('reflectionHistoryList');
   hist.innerHTML = '';
@@ -4674,6 +4691,7 @@ function loadReflection() {
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       reflectionViewDate = ds;
+      reflectionForceEdit = true;
       loadReflection();
       document.querySelector('.reflection-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -4715,6 +4733,7 @@ function commitReflectionSave() {
     ...form,
     completedAt: Date.now(),
   });
+  reflectionForceEdit = false;
   loadReflection();
 }
 
@@ -4730,6 +4749,7 @@ function commitReflectionSave() {
   document.getElementById('reflectionSaveBtn')?.addEventListener('click', commitReflectionSave);
   document.getElementById('reflectionBackToday')?.addEventListener('click', () => {
     reflectionViewDate = getActiveDateString();
+    reflectionForceEdit = false;
     loadReflection();
   });
 })();

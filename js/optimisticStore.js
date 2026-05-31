@@ -191,6 +191,9 @@ async function pushKeyToSupabase(key, value) {
       history: h.history || {},
       streak: h.streak ?? 0,
       best_streak: h.bestStreak ?? 0,
+      subtasks: h.subtasks || [],
+      subtask_log: h.subtaskLog || {},
+      emoji: h.emoji || null,
       updated_at: new Date().toISOString(),
     }));
     const { error } = await supabase.from('habits').upsert(rows, { onConflict: 'user_id,id' });
@@ -289,7 +292,7 @@ export async function hydrateFromSupabase(userId) {
 
   const [tasksRes, habitsRes, reflRes, prefsRes] = await Promise.all([
     supabase.from('tasks').select('task_date, goals, updated_at').eq('user_id', userId),
-    supabase.from('habits').select('id, text, history, streak, best_streak, updated_at').eq('user_id', userId),
+    supabase.from('habits').select('id, text, history, streak, best_streak, subtasks, subtask_log, emoji, updated_at').eq('user_id', userId),
     supabase
       .from('reflections')
       .select('reflection_date, wins, struggles, tomorrow, summary, updated_at')
@@ -307,13 +310,27 @@ export async function hydrateFromSupabase(userId) {
   });
 
   if (habitsRes.data?.length) {
-    const habits = habitsRes.data.map((h) => ({
-      id: h.id,
-      text: h.text,
-      history: h.history || {},
-      streak: h.streak ?? 0,
-      bestStreak: h.best_streak ?? 0,
-    }));
+    const localHabits = readLocal('habits_v1') || [];
+    const localById = Object.fromEntries(localHabits.map((h) => [h.id, h]));
+
+    const habits = habitsRes.data.map((h) => {
+      const local = localById[h.id];
+      const cloudSubtasks = Array.isArray(h.subtasks) ? h.subtasks : [];
+      const subtasks = cloudSubtasks.length ? cloudSubtasks : local?.subtasks || [];
+      const cloudLog = h.subtask_log && typeof h.subtask_log === 'object' ? h.subtask_log : {};
+      const subtaskLog =
+        Object.keys(cloudLog).length > 0 ? cloudLog : local?.subtaskLog || {};
+      return {
+        id: h.id,
+        text: h.text,
+        history: h.history || {},
+        streak: h.streak ?? 0,
+        bestStreak: h.best_streak ?? 0,
+        subtasks,
+        subtaskLog,
+        emoji: h.emoji ?? local?.emoji,
+      };
+    });
     writeLocal('habits_v1', habits);
   }
 

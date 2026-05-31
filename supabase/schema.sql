@@ -37,6 +37,9 @@ create table if not exists public.habits (
   history jsonb not null default '{}'::jsonb,
   streak integer not null default 0,
   best_streak integer not null default 0,
+  subtasks jsonb not null default '[]'::jsonb,
+  subtask_log jsonb not null default '{}'::jsonb,
+  emoji text,
   updated_at timestamptz not null default now(),
   primary key (user_id, id)
 );
@@ -121,3 +124,8 @@ create policy "user_preferences_delete_own"
 create index if not exists tasks_user_updated_idx on public.tasks (user_id, updated_at desc);
 create index if not exists habits_user_updated_idx on public.habits (user_id, updated_at desc);
 create index if not exists reflections_user_updated_idx on public.reflections (user_id, updated_at desc);
+
+-- Migration for existing projects (safe to re-run)
+alter table public.habits add column if not exists subtasks jsonb not null default '[]'::jsonb;
+alter table public.habits add column if not exists subtask_log jsonb not null default '{}'::jsonb;
+alter table public.habits add column if not exists emoji text;
