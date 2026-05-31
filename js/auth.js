@@ -8,11 +8,20 @@ import {
   storeGet,
   storeSet,
 } from './optimisticStore.js';
+import {
+  clearCachedSession,
+  getCachedSession,
+  isCachedSessionValid,
+  restoreClientSession,
+  setCachedSession,
+} from './sessionCache.js';
 
 let currentUser = null;
 let authMode = 'signin';
 let signOutTimer = null;
 let sessionSetupPromise = null;
+let lastSetupKey = '';
+let explicitSignOut = false;
 
 export function getCurrentUser() {
   return currentUser;
@@ -68,6 +77,10 @@ export function applyProfileAvatar(user) {
   syncSettingsProfilePreview();
 }
 
+function isSignedIn() {
+  return Boolean(currentUser) || isCachedSessionValid();
+}
+
 function setAuthStatus(text, isError = false) {
   const el = document.getElementById('authStatus');
   if (!el) return;
@@ -80,17 +93,16 @@ function setAppLocked(locked) {
 }
 
 export function showAuthModal() {
+  if (isSignedIn()) return;
   const modal = document.getElementById('authModal');
   modal?.classList.remove('hidden');
-  if (supabaseConfigured && !currentUser) {
-    modal?.classList.add('auth-modal--required');
-    document.getElementById('authModalClose')?.classList.add('hidden');
-  }
+  modal?.classList.add('auth-modal--required');
+  document.getElementById('authModalClose')?.classList.add('hidden');
   setAuthMode('signin');
 }
 
 function hideAuthModal() {
-  if (supabaseConfigured && !currentUser) return;
+  if (supabaseConfigured && !isSignedIn()) return;
   const modal = document.getElementById('authModal');
   modal?.classList.add('hidden');
   modal?.classList.remove('auth-modal--required');
@@ -149,6 +161,18 @@ function updateAccountUI(user) {
   }
 }
 
+function applySignedInUI(session) {
+  const user = session?.user;
+  if (!user?.id) return;
+  setCachedSession(session);
+  restoreClientSession(session);
+  cancelPendingSignOut();
+  setSyncedUserId(user.id);
+  updateAccountUI(user);
+  setAppLocked(false);
+  hideAuthModal();
+}
+
 function cancelPendingSignOut() {
   if (signOutTimer) {
     clearTimeout(signOutTimer);
@@ -158,47 +182,64 @@ function cancelPendingSignOut() {
 
 function scheduleSignedOutUI() {
   cancelPendingSignOut();
-  signOutTimer = setTimeout(async () => {
+  signOutTimer = setTimeout(() => {
     signOutTimer = null;
-    if (!supabase) return;
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.user) {
-      console.info('[auth] Ignoring transient SIGNED_OUT — session still valid');
-      updateAccountUI(session.user);
-      setSyncedUserId(session.user.id);
-      setSyncEnabled(true);
-      setAppLocked(false);
-      hideAuthModal();
+    if (explicitSignOut) {
+      explicitSignOut = false;
+      confirmSignedOutUI();
       return;
     }
-    console.info('[auth] Confirmed signed out');
-    setSyncEnabled(false);
-    setSyncedUserId(null);
-    updateAccountUI(null);
-    setAppLocked(true);
-    showAuthModal();
-    window.dispatchEvent(new CustomEvent('auth-changed'));
-  }, 400);
+    if (isCachedSessionValid()) {
+      console.info('[auth] Keeping signed-in UI — access token still valid');
+      applySignedInUI(getCachedSession());
+      if (!sessionSetupPromise) setSyncEnabled(true);
+      return;
+    }
+    confirmSignedOutUI();
+  }, 300);
+}
+
+function confirmSignedOutUI() {
+  console.info('[auth] Confirmed signed out');
+  clearCachedSession();
+  setSyncEnabled(false);
+  setSyncedUserId(null);
+  updateAccountUI(null);
+  setAppLocked(true);
+  showAuthModal();
+  window.dispatchEvent(new CustomEvent('auth-changed'));
+}
+
+async function clearStaleAuthStorage() {
+  if (!supabase) return;
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    console.warn('[auth] could not clear local auth storage:', err?.message || err);
+  }
+  clearCachedSession();
 }
 
 async function finishAuthenticatedSession(session, { migrate = false } = {}) {
   const user = session?.user;
-  if (!user?.id) return;
+  if (!user?.id || !session?.access_token) return;
 
-  cancelPendingSignOut();
+  const setupKey = `${user.id}:${session.access_token.slice(0, 12)}`;
+  if (setupKey === lastSetupKey && sessionSetupPromise) {
+    await sessionSetupPromise;
+    return;
+  }
+  lastSetupKey = setupKey;
+
+  applySignedInUI(session);
   setSyncEnabled(false);
   clearPendingSync();
-  setSyncedUserId(user.id);
-  updateAccountUI(user);
-  setAppLocked(false);
-  hideAuthModal();
 
   if (sessionSetupPromise) await sessionSetupPromise;
 
   sessionSetupPromise = (async () => {
     try {
+      await new Promise((r) => setTimeout(r, 150));
       await hydrateFromSupabase(user.id);
       if (migrate) await migrateLocalIfCloudEmpty(user.id);
     } catch (err) {
@@ -224,14 +265,23 @@ async function handleSignIn(email, password) {
   setSyncEnabled(false);
   clearPendingSync();
   cancelPendingSignOut();
+  lastSetupKey = '';
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  await clearStaleAuthStorage();
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     setAuthStatus(error.message, true);
     return;
   }
 
+  if (!data.session?.user) {
+    setAuthStatus('Sign-in succeeded but no session was returned. Try again.', true);
+    return;
+  }
+
   setAuthStatus('');
+  await finishAuthenticatedSession(data.session, { migrate: true });
 }
 
 async function handleSignUp(email, password) {
@@ -243,6 +293,7 @@ async function handleSignUp(email, password) {
   setAuthStatus('Creating account…');
   setSyncEnabled(false);
   clearPendingSync();
+  await clearStaleAuthStorage();
 
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) {
@@ -252,6 +303,7 @@ async function handleSignUp(email, password) {
 
   if (data.session?.user) {
     setAuthStatus('');
+    await finishAuthenticatedSession(data.session, { migrate: true });
     return;
   }
 
@@ -261,9 +313,12 @@ async function handleSignUp(email, password) {
 
 async function handleSignOut() {
   if (!supabase) return;
+  explicitSignOut = true;
   cancelPendingSignOut();
   setSyncEnabled(false);
   clearPendingSync();
+  clearCachedSession();
+  lastSetupKey = '';
   await supabase.auth.signOut();
   setSyncedUserId(null);
   updateAccountUI(null);
@@ -303,10 +358,10 @@ function wireAuthFormListeners() {
   });
 
   authClose?.addEventListener('click', () => {
-    if (!supabaseConfigured || currentUser) hideAuthModal();
+    if (!supabaseConfigured || isSignedIn()) hideAuthModal();
   });
   modal?.addEventListener('click', (e) => {
-    if (e.target === modal && (!supabaseConfigured || currentUser)) hideAuthModal();
+    if (e.target === modal && (!supabaseConfigured || isSignedIn())) hideAuthModal();
   });
 
   document.querySelectorAll('.auth-mode-tab').forEach((tab) => {
@@ -351,8 +406,10 @@ export function initAuth() {
       const user = session?.user ?? null;
       console.info('[auth]', event, user?.email ?? 'signed out');
 
+      if (session?.access_token) setCachedSession(session);
+
       if (event === 'INITIAL_SESSION') {
-        if (user) {
+        if (user && session?.access_token) {
           finishAuthenticatedSession(session).then(() => resolve(session));
         } else {
           setSyncedUserId(null);
@@ -366,21 +423,29 @@ export function initAuth() {
       }
 
       if (event === 'SIGNED_IN') {
+        if (session?.access_token && session.access_token === getCachedSession()?.access_token) {
+          applySignedInUI(session);
+          return;
+        }
         finishAuthenticatedSession(session, { migrate: true });
         return;
       }
 
-      if (event === 'TOKEN_REFRESHED' && user) {
+      if (event === 'TOKEN_REFRESHED' && user && session?.access_token) {
+        setCachedSession(session);
         cancelPendingSignOut();
-        setSyncedUserId(user.id);
-        updateAccountUI(user);
-        setAppLocked(false);
-        hideAuthModal();
-        if (!syncEnabled) setSyncEnabled(true);
+        applySignedInUI(session);
+        if (!sessionSetupPromise) setSyncEnabled(true);
         return;
       }
 
       if (event === 'SIGNED_OUT') {
+        if (explicitSignOut) return;
+        if (isCachedSessionValid()) {
+          console.warn('[auth] Ignoring SIGNED_OUT — cached access token still valid');
+          applySignedInUI(getCachedSession());
+          return;
+        }
         scheduleSignedOutUI();
       }
     });
@@ -396,7 +461,7 @@ export function wireProfileUpload() {
 
   wrap?.addEventListener('click', (e) => {
     e.preventDefault();
-    if (supabaseConfigured && !currentUser) {
+    if (supabaseConfigured && !isSignedIn()) {
       showAuthModal();
       return;
     }

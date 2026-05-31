@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigured } from './supabaseClient.js';
+import { getCachedSession, isCachedSessionValid, restoreClientSession } from './sessionCache.js';
 
 const SYNC_DEBOUNCE_MS = 450;
 const PREFS_DEBOUNCE_MS = 800;
@@ -83,13 +84,17 @@ export function clearPendingSync() {
 
 async function verifySessionForSync() {
   if (!supabase || !cachedUserId) return false;
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-  if (error || !session?.access_token || !session.user?.id) return false;
-  if (session.user.id !== cachedUserId) cachedUserId = session.user.id;
-  return true;
+  const cached = getCachedSession();
+  if (isCachedSessionValid(30_000) && cached?.user?.id === cachedUserId) {
+    await restoreClientSession(cached);
+    return true;
+  }
+  if (isCachedSessionValid(30_000) && cached?.user?.id) {
+    cachedUserId = cached.user.id;
+    await restoreClientSession(cached);
+    return true;
+  }
+  return false;
 }
 
 function scheduleSync(key, value) {
@@ -279,6 +284,8 @@ export async function migrateLocalIfCloudEmpty(userId) {
 
 export async function hydrateFromSupabase(userId) {
   if (!userId || !supabaseConfigured || !supabase) return;
+
+  await restoreClientSession(getCachedSession());
 
   const [tasksRes, habitsRes, reflRes, prefsRes] = await Promise.all([
     supabase.from('tasks').select('task_date, goals, updated_at').eq('user_id', userId),
