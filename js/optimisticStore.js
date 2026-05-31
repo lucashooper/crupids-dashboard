@@ -164,14 +164,18 @@ async function pushKeyToSupabase(key, value) {
   if (key.startsWith('reflection:')) {
     const reflectionDate = key.slice('reflection:'.length);
     const payload = value || {};
+    const toLine = (v) => (Array.isArray(v) ? v.join('\n') : v ?? '');
     const { error } = await supabase.from('reflections').upsert(
       {
         user_id: cachedUserId,
         reflection_date: reflectionDate,
-        wins: payload.wins ?? '',
-        struggles: payload.struggles ?? '',
-        tomorrow: payload.tomorrow ?? '',
-        summary: payload.summary ?? '',
+        wins: toLine(payload.wins),
+        struggles: toLine(payload.struggles),
+        tomorrow: toLine(payload.tomorrow),
+        summary: JSON.stringify({
+          summary: payload.summary ?? '',
+          completedAt: payload.completedAt ?? null,
+        }),
         updated_at: payload.updatedAt || new Date().toISOString(),
       },
       { onConflict: 'user_id,reflection_date' }
@@ -270,11 +274,23 @@ export async function hydrateFromSupabase(userId) {
   }
 
   (reflRes.data || []).forEach((r) => {
+    let summaryText = r.summary ?? '';
+    let completedAt = null;
+    try {
+      const meta = JSON.parse(r.summary);
+      if (meta && typeof meta === 'object' && 'summary' in meta) {
+        summaryText = meta.summary ?? '';
+        completedAt = meta.completedAt ?? null;
+      }
+    } catch {
+      /* legacy plain summary string */
+    }
     writeLocal(`reflection:${r.reflection_date}`, {
       wins: r.wins ?? '',
       struggles: r.struggles ?? '',
       tomorrow: r.tomorrow ?? '',
-      summary: r.summary ?? '',
+      summary: summaryText,
+      completedAt,
       updatedAt: r.updated_at,
     });
   });

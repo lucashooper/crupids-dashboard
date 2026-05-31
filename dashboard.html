@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Dashboard</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#050506" />
+<meta name="apple-mobile-web-app-title" content="Dashboard" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
@@ -1948,13 +1954,92 @@
     border-color: rgba(255,255,255,0.22);
     background: rgba(255,255,255,0.06);
   }
-  .reflection-save-hint {
+  .reflection-field-hint {
     font-size: 11px;
     color: var(--text-tertiary);
-    margin-top: 4px;
-    min-height: 16px;
+    margin: -2px 0 8px;
   }
-  .reflection-save-hint.is-saved { color: var(--success); }
+  .reflection-bullets {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .reflection-bullet-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .reflection-bullet-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(107,227,164,0.65);
+    flex-shrink: 0;
+  }
+  .reflection-bullet-input {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+  }
+  .reflection-bullet-input:focus {
+    outline: none;
+    border-color: rgba(107,227,164,0.35);
+  }
+  .reflection-add-point {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin-bottom: 14px;
+    border: none;
+    background: none;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .reflection-add-point:hover { color: var(--text-secondary); }
+  .reflection-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .reflection-status {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    flex: 1;
+    min-width: 140px;
+  }
+  .reflection-status.is-saved { color: var(--success); }
+  .reflection-status.is-complete { color: var(--success); }
+  .reflection-back-today {
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .reflection-back-today:hover {
+    background: rgba(255,255,255,0.06);
+    color: var(--text-primary);
+  }
+  .reflection-save-btn { margin: 0; padding: 10px 20px; font-size: 13px; }
   .reflection-history-title {
     font-size: 10px;
     font-weight: 700;
@@ -1966,29 +2051,42 @@
   .reflection-history-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-height: 220px;
+    gap: 8px;
+    max-height: 320px;
     overflow-y: auto;
   }
   .reflection-history-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px;
-    border-radius: 10px;
+    flex-direction: column;
+    border-radius: 12px;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
-    cursor: pointer;
-    transition: background 0.15s;
-    text-align: left;
+    overflow: hidden;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .reflection-history-item:hover { background: rgba(255,255,255,0.05); }
+  .reflection-history-item.is-active { border-color: rgba(107,227,164,0.35); }
+  .reflection-history-item.is-expanded { background: rgba(255,255,255,0.05); }
+  .reflection-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     width: 100%;
+    padding: 12px 14px;
+    border: none;
+    background: transparent;
     color: inherit;
     font-family: inherit;
+    text-align: left;
+    cursor: pointer;
   }
-  .reflection-history-item:hover { background: rgba(255,255,255,0.06); }
-  .reflection-history-item.is-active {
-    border-color: rgba(107,227,164,0.35);
-    background: rgba(107,227,164,0.06);
+  .reflection-history-head-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
   }
   .reflection-history-date {
     font-size: 13px;
@@ -1998,10 +2096,54 @@
   .reflection-history-snippet {
     font-size: 11px;
     color: var(--text-tertiary);
-    max-width: 55%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .reflection-history-chevron {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .reflection-history-item.is-expanded .reflection-history-chevron {
+    transform: rotate(180deg);
+  }
+  .reflection-history-body {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .reflection-history-item.is-expanded .reflection-history-body { display: block; }
+  .reflection-history-section { margin-bottom: 10px; }
+  .reflection-history-section:last-child { margin-bottom: 0; }
+  .reflection-history-section strong {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+  }
+  .reflection-history-section ul { margin: 0; padding-left: 16px; }
+  .reflection-history-edit {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .reflection-history-edit:hover {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.08);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -2178,23 +2320,33 @@
       <div class="section-title">Reflection</div>
       <div class="gm-card reflection-card">
         <div class="reflection-date" id="reflectionDateLabel">Today</div>
-        <div class="reflection-field">
-          <label class="reflection-label" for="reflectionWins">What went well today?</label>
-          <textarea class="reflection-textarea" id="reflectionWins" placeholder="Wins, progress, things you're proud of…"></textarea>
+        <p class="reflection-field-hint" id="reflectionModeHint">Add quick bullet points, then save when you are done. Past entries stay saved by day.</p>
+
+        <div class="reflection-field" data-reflection-field="wins">
+          <label class="reflection-label">What went well today?</label>
+          <ul class="reflection-bullets" id="reflectionBulletsWins"></ul>
+          <button type="button" class="reflection-add-point" data-add-field="wins">+ Add point</button>
         </div>
-        <div class="reflection-field">
-          <label class="reflection-label" for="reflectionStruggles">What didn't go as planned?</label>
-          <textarea class="reflection-textarea" id="reflectionStruggles" placeholder="Friction, distractions, what went wrong…"></textarea>
+        <div class="reflection-field" data-reflection-field="struggles">
+          <label class="reflection-label">What didn't go as planned?</label>
+          <ul class="reflection-bullets" id="reflectionBulletsStruggles"></ul>
+          <button type="button" class="reflection-add-point" data-add-field="struggles">+ Add point</button>
         </div>
-        <div class="reflection-field">
-          <label class="reflection-label" for="reflectionTomorrow">What will you do better tomorrow?</label>
-          <textarea class="reflection-textarea" id="reflectionTomorrow" placeholder="One or two concrete improvements…"></textarea>
+        <div class="reflection-field" data-reflection-field="tomorrow">
+          <label class="reflection-label">What will you do better tomorrow?</label>
+          <ul class="reflection-bullets" id="reflectionBulletsTomorrow"></ul>
+          <button type="button" class="reflection-add-point" data-add-field="tomorrow">+ Add point</button>
         </div>
         <div class="reflection-field">
           <label class="reflection-label" for="reflectionSummary">Daily summary (optional)</label>
-          <textarea class="reflection-textarea" id="reflectionSummary" placeholder="Your own notes in your own words…"></textarea>
+          <textarea class="reflection-textarea" id="reflectionSummary" rows="3" placeholder="A sentence or two in your own words…"></textarea>
         </div>
-        <div class="reflection-save-hint" id="reflectionSaveHint">Autosaves as you type.</div>
+
+        <div class="reflection-actions">
+          <button type="button" class="reflection-back-today hidden" id="reflectionBackToday">← Back to today</button>
+          <button type="button" class="modal-save-btn reflection-save-btn" id="reflectionSaveBtn">Save reflection</button>
+          <span class="reflection-status" id="reflectionStatus">Draft — not in history until you save</span>
+        </div>
       </div>
       <div class="reflection-history-title">Past reflections</div>
       <div class="reflection-history-list" id="reflectionHistoryList"></div>
@@ -4222,39 +4374,186 @@ function buildHabitRow(habit) {
 }
 
 // ── Reflection ──
+const REFLECTION_BULLET_FIELDS = ['wins', 'struggles', 'tomorrow'];
 let reflectionViewDate = null;
-let reflectionSaveTimer = null;
+let reflectionDraftTimer = null;
 
 function reflectionKey(date) {
   return 'reflection:' + date;
 }
-function getReflection(date) {
-  return storeGet(reflectionKey(date)) || { wins: '', struggles: '', tomorrow: '', summary: '' };
+
+function reflectionBulletsFromValue(val) {
+  if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+  if (typeof val === 'string' && val.trim()) {
+    return val.split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
 }
+
+function normalizeReflection(raw) {
+  const r = raw || {};
+  return {
+    wins: reflectionBulletsFromValue(r.wins),
+    struggles: reflectionBulletsFromValue(r.struggles),
+    tomorrow: reflectionBulletsFromValue(r.tomorrow),
+    summary: typeof r.summary === 'string' ? r.summary : '',
+    completedAt: r.completedAt || null,
+    updatedAt: r.updatedAt || null,
+  };
+}
+
+function getReflection(date) {
+  return normalizeReflection(storeGet(reflectionKey(date)));
+}
+
+function reflectionHasContent(data) {
+  return (
+    data.wins.length > 0 ||
+    data.struggles.length > 0 ||
+    data.tomorrow.length > 0 ||
+    (data.summary || '').trim().length > 0
+  );
+}
+
 function saveReflection(date, data) {
   storeSet(reflectionKey(date), { ...data, updatedAt: Date.now() });
 }
+
+function bulletsListId(field) {
+  return 'reflectionBullets' + field.charAt(0).toUpperCase() + field.slice(1);
+}
+
+function renderReflectionBullets(field, items) {
+  const list = document.getElementById(bulletsListId(field));
+  if (!list) return;
+  list.innerHTML = '';
+  const rows = items.length ? items : [''];
+  rows.forEach((text, idx) => {
+    const li = document.createElement('li');
+    li.className = 'reflection-bullet-row';
+    const dot = document.createElement('span');
+    dot.className = 'reflection-bullet-dot';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'reflection-bullet-input';
+    input.value = text;
+    input.placeholder = idx === 0 ? 'e.g. Finished course module' : 'Another point…';
+    input.dataset.field = field;
+    input.addEventListener('input', scheduleReflectionDraftSave);
+    li.appendChild(dot);
+    li.appendChild(input);
+    list.appendChild(li);
+  });
+}
+
+function collectReflectionBullets(field) {
+  const list = document.getElementById(bulletsListId(field));
+  if (!list) return [];
+  return [...list.querySelectorAll('.reflection-bullet-input')]
+    .map(inp => inp.value.trim())
+    .filter(Boolean);
+}
+
+function collectReflectionForm() {
+  return {
+    wins: collectReflectionBullets('wins'),
+    struggles: collectReflectionBullets('struggles'),
+    tomorrow: collectReflectionBullets('tomorrow'),
+    summary: document.getElementById('reflectionSummary')?.value.trim() || '',
+  };
+}
+
+function populateReflectionForm(data) {
+  renderReflectionBullets('wins', data.wins);
+  renderReflectionBullets('struggles', data.struggles);
+  renderReflectionBullets('tomorrow', data.tomorrow);
+  document.getElementById('reflectionSummary').value = data.summary || '';
+}
+
 function listReflectionDates() {
   return storeListKeys('reflection:')
     .map(k => k.replace('reflection:', ''))
     .filter(ds => {
       const r = getReflection(ds);
-      return (r.wins || r.struggles || r.tomorrow || r.summary || '').trim().length > 0;
+      return r.completedAt || reflectionHasContent(r);
     })
     .sort()
     .reverse();
 }
+
+function reflectionHistorySnippet(data) {
+  const parts = [...data.wins, ...data.struggles].slice(0, 2);
+  if (parts.length) return parts.join(' · ');
+  if (data.summary.trim()) return data.summary.trim();
+  return 'Saved reflection';
+}
+
+function buildReflectionHistoryBody(data) {
+  const body = document.createElement('div');
+  body.className = 'reflection-history-body';
+  const sections = [
+    { key: 'wins', label: 'Went well' },
+    { key: 'struggles', label: "Didn't go well" },
+    { key: 'tomorrow', label: 'Tomorrow' },
+  ];
+  sections.forEach(({ key, label }) => {
+    const items = data[key];
+    if (!items.length) return;
+    const sec = document.createElement('div');
+    sec.className = 'reflection-history-section';
+    sec.innerHTML = `<strong>${label}</strong>`;
+    const ul = document.createElement('ul');
+    items.forEach(t => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul);
+    body.appendChild(sec);
+  });
+  if (data.summary.trim()) {
+    const sec = document.createElement('div');
+    sec.className = 'reflection-history-section';
+    sec.innerHTML = `<strong>Summary</strong><p style="margin:4px 0 0">${data.summary}</p>`;
+    body.appendChild(sec);
+  }
+  return body;
+}
+
+function updateReflectionStatus(data) {
+  const status = document.getElementById('reflectionStatus');
+  const today = getActiveDateString();
+  const viewing = reflectionViewDate || today;
+  if (!status) return;
+  status.classList.remove('is-saved', 'is-complete');
+  if (data.completedAt) {
+    status.textContent = viewing === today
+      ? `Saved · ${new Date(data.completedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+      : `Saved entry for ${formatDate(viewing)}`;
+    status.classList.add('is-complete');
+  } else if (reflectionHasContent(data)) {
+    status.textContent = 'Draft — tap Save reflection to keep in history';
+  } else {
+    status.textContent = 'Draft — not in history until you save';
+  }
+}
+
 function loadReflection() {
   const today = getActiveDateString();
   if (!reflectionViewDate) reflectionViewDate = today;
-  document.getElementById('reflectionDateLabel').textContent =
-    reflectionViewDate === today ? `Today — ${formatDate(today)}` : formatDate(reflectionViewDate);
+  const viewing = reflectionViewDate;
+  const isToday = viewing === today;
 
-  const data = getReflection(reflectionViewDate);
-  document.getElementById('reflectionWins').value = data.wins || '';
-  document.getElementById('reflectionStruggles').value = data.struggles || '';
-  document.getElementById('reflectionTomorrow').value = data.tomorrow || '';
-  document.getElementById('reflectionSummary').value = data.summary || '';
+  document.getElementById('reflectionDateLabel').textContent =
+    isToday ? `Today — ${formatDate(today)}` : formatDate(viewing);
+  document.getElementById('reflectionBackToday')?.classList.toggle('hidden', isToday);
+  document.getElementById('reflectionModeHint').textContent = isToday
+    ? 'Add quick bullet points, then save when you are done. Tomorrow opens a fresh page.'
+    : `Viewing ${formatDate(viewing)}. Edit and save, or go back to today for a new entry.`;
+
+  const data = getReflection(viewing);
+  populateReflectionForm(data);
+  updateReflectionStatus(data);
 
   const hist = document.getElementById('reflectionHistoryList');
   hist.innerHTML = '';
@@ -4262,47 +4561,104 @@ function loadReflection() {
   if (dates.length === 0) {
     const p = document.createElement('div');
     p.className = 'empty-state';
-    p.textContent = 'Past entries will appear here once you save a reflection.';
+    p.textContent = 'Saved reflections appear here after you tap Save reflection.';
     hist.appendChild(p);
     return;
   }
+
   dates.slice(0, 30).forEach(ds => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'reflection-history-item' + (ds === reflectionViewDate ? ' is-active' : '');
     const r = getReflection(ds);
-    const snippet = (r.summary || r.wins || r.struggles || '').trim().slice(0, 48) || 'Empty';
-    btn.innerHTML = `<span class="reflection-history-date">${ds === today ? 'Today' : formatDate(ds)}</span><span class="reflection-history-snippet">${snippet}</span>`;
-    btn.addEventListener('click', () => {
+    const card = document.createElement('div');
+    card.className = 'reflection-history-item' + (ds === viewing ? ' is-active' : '');
+
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'reflection-history-head';
+    head.innerHTML = `
+      <span class="reflection-history-head-main">
+        <span class="reflection-history-date">${ds === today ? 'Today' : formatDate(ds)}</span>
+        <span class="reflection-history-snippet">${reflectionHistorySnippet(r)}</span>
+      </span>
+      <span class="reflection-history-chevron">▼</span>`;
+
+    head.addEventListener('click', (e) => {
+      if (e.target.closest('.reflection-history-edit')) return;
+      const open = card.classList.toggle('is-expanded');
+      hist.querySelectorAll('.reflection-history-item').forEach(el => {
+        if (el !== card) el.classList.remove('is-expanded');
+      });
+      if (!open) card.classList.remove('is-expanded');
+    });
+
+    const body = buildReflectionHistoryBody(r);
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'reflection-history-edit';
+    editBtn.textContent = 'Edit this day';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       reflectionViewDate = ds;
       loadReflection();
+      document.querySelector('.reflection-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    hist.appendChild(btn);
+    body.appendChild(editBtn);
+
+    card.appendChild(head);
+    card.appendChild(body);
+    hist.appendChild(card);
   });
 }
-(function() {
-  const hint = document.getElementById('reflectionSaveHint');
-  function scheduleSave() {
-    if (reflectionSaveTimer) clearTimeout(reflectionSaveTimer);
-    reflectionSaveTimer = setTimeout(() => {
-      const date = reflectionViewDate || getActiveDateString();
-      saveReflection(date, {
-        wins: document.getElementById('reflectionWins').value.trim(),
-        struggles: document.getElementById('reflectionStruggles').value.trim(),
-        tomorrow: document.getElementById('reflectionTomorrow').value.trim(),
-        summary: document.getElementById('reflectionSummary').value.trim(),
-      });
-      hint.textContent = 'Saved';
-      hint.classList.add('is-saved');
-      setTimeout(() => {
-        hint.textContent = 'Autosaves as you type.';
-        hint.classList.remove('is-saved');
-      }, 2000);
-      loadReflection();
-    }, 600);
+
+function scheduleReflectionDraftSave() {
+  const status = document.getElementById('reflectionStatus');
+  if (reflectionDraftTimer) clearTimeout(reflectionDraftTimer);
+  reflectionDraftTimer = setTimeout(() => {
+    const date = reflectionViewDate || getActiveDateString();
+    const existing = getReflection(date);
+    const draft = collectReflectionForm();
+    saveReflection(date, {
+      ...draft,
+      completedAt: existing.completedAt,
+    });
+    if (status && !existing.completedAt) {
+      status.textContent = 'Draft saved locally';
+      status.classList.add('is-saved');
+    }
+  }, 500);
+}
+
+function commitReflectionSave() {
+  const date = reflectionViewDate || getActiveDateString();
+  const form = collectReflectionForm();
+  if (!reflectionHasContent(form)) {
+    const status = document.getElementById('reflectionStatus');
+    if (status) status.textContent = 'Add at least one point or a summary before saving';
+    return;
   }
-  ['reflectionWins', 'reflectionStruggles', 'reflectionTomorrow', 'reflectionSummary'].forEach(id => {
-    document.getElementById(id).addEventListener('input', scheduleSave);
+  saveReflection(date, {
+    ...form,
+    completedAt: Date.now(),
+  });
+  loadReflection();
+}
+
+(function initReflectionUi() {
+  document.querySelectorAll('.reflection-add-point').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const field = btn.dataset.addField;
+      const items = collectReflectionBullets(field);
+      items.push('');
+      renderReflectionBullets(field, items);
+      const list = document.getElementById(bulletsListId(field));
+      list?.querySelector('.reflection-bullet-input:last-child')?.focus();
+    });
+  });
+
+  document.getElementById('reflectionSummary')?.addEventListener('input', scheduleReflectionDraftSave);
+  document.getElementById('reflectionSaveBtn')?.addEventListener('click', commitReflectionSave);
+  document.getElementById('reflectionBackToday')?.addEventListener('click', () => {
+    reflectionViewDate = getActiveDateString();
+    loadReflection();
   });
 })();
 
