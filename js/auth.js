@@ -16,6 +16,28 @@ export function getCurrentUser() {
   return currentUser;
 }
 
+export function openSettingsModal() {
+  if (typeof window.renderStatsPanel === 'function') window.renderStatsPanel();
+  syncSettingsProfilePreview();
+  document.getElementById('settingsModal')?.classList.remove('hidden');
+}
+
+function syncSettingsProfilePreview() {
+  const src = document.getElementById('profilePic');
+  const dst = document.getElementById('settingsProfilePic');
+  const ph = document.getElementById('settingsProfilePlaceholder');
+  if (!dst || !ph) return;
+  if (src?.src && !src.classList.contains('hidden')) {
+    dst.src = src.src;
+    dst.classList.remove('hidden');
+    ph.classList.add('hidden');
+  } else {
+    dst.classList.add('hidden');
+    dst.removeAttribute('src');
+    ph.classList.remove('hidden');
+  }
+}
+
 export function applyProfileAvatar(user) {
   const img = document.getElementById('profilePic');
   const placeholder = document.getElementById('profilePlaceholder');
@@ -37,6 +59,7 @@ export function applyProfileAvatar(user) {
     img.removeAttribute('src');
     placeholder.classList.remove('hidden');
   }
+  syncSettingsProfilePreview();
 }
 
 function setAuthStatus(text, isError = false) {
@@ -54,20 +77,6 @@ function showAuthModal() {
 function hideAuthModal() {
   document.getElementById('authModal')?.classList.add('hidden');
   setAuthStatus('');
-}
-
-function openSettingsAccount() {
-  const settingsModal = document.getElementById('settingsModal');
-  settingsModal?.classList.remove('hidden');
-  document.getElementById('settingsAccountSection')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function handleAccountClick() {
-  if (currentUser) {
-    openSettingsAccount();
-    return;
-  }
-  showAuthModal();
 }
 
 function setAuthMode(mode) {
@@ -103,34 +112,21 @@ function updateAccountUI(user) {
   const signedOutPanel = document.getElementById('authSignedOut');
   const emailEl = document.getElementById('authUserEmail');
   const settingsAccount = document.getElementById('settingsAccountSection');
-  const openAuthBtn = document.getElementById('openAuthBtn');
+  const settingsSignIn = document.getElementById('settingsSignInSection');
 
   if (user) {
     signedInPanel?.classList.remove('hidden');
     signedOutPanel?.classList.add('hidden');
     settingsAccount?.classList.remove('hidden');
+    settingsSignIn?.classList.add('hidden');
     if (emailEl) emailEl.textContent = user.email || 'Signed in';
     applyProfileAvatar(user);
-
-    if (openAuthBtn) {
-      const short = user.email ? user.email.split('@')[0] : 'Synced';
-      openAuthBtn.textContent = short.length > 12 ? `${short.slice(0, 11)}…` : short;
-      openAuthBtn.title = `Signed in as ${user.email || 'your account'} — click for account`;
-      openAuthBtn.classList.add('account-btn--synced');
-      openAuthBtn.setAttribute('aria-label', `Account: ${user.email || 'signed in'}`);
-    }
   } else {
     signedInPanel?.classList.add('hidden');
     signedOutPanel?.classList.remove('hidden');
     settingsAccount?.classList.add('hidden');
+    settingsSignIn?.classList.remove('hidden');
     applyProfileAvatar(null);
-
-    if (openAuthBtn) {
-      openAuthBtn.textContent = 'Account';
-      openAuthBtn.title = 'Sign in to sync across devices';
-      openAuthBtn.classList.remove('account-btn--synced');
-      openAuthBtn.setAttribute('aria-label', 'Sign in to sync across devices');
-    }
   }
 }
 
@@ -209,16 +205,8 @@ export function initAuth() {
   const passwordInput = document.getElementById('authPassword');
   const signOutBtn = document.getElementById('authSignOutBtn');
   const offlineBtn = document.getElementById('authOfflineBtn');
-  const openAuthBtn = document.getElementById('openAuthBtn');
-  const profileWrap = document.getElementById('profilePicWrap');
   const authClose = document.getElementById('authModalClose');
-
-  openAuthBtn?.addEventListener('click', handleAccountClick);
-  profileWrap?.addEventListener('dblclick', (e) => {
-    if (!supabaseConfigured) return;
-    e.preventDefault();
-    handleAccountClick();
-  });
+  const settingsSignInBtn = document.getElementById('settingsSignInBtn');
 
   authClose?.addEventListener('click', hideAuthModal);
   offlineBtn?.addEventListener('click', () => {
@@ -247,9 +235,13 @@ export function initAuth() {
   signOutBtn?.addEventListener('click', handleSignOut);
   document.getElementById('authSignOutBtnModal')?.addEventListener('click', handleSignOut);
 
+  settingsSignInBtn?.addEventListener('click', () => {
+    document.getElementById('settingsModal')?.classList.add('hidden');
+    showAuthModal();
+  });
+
   if (!supabaseConfigured) {
     document.getElementById('syncHint')?.classList.add('hidden');
-    if (openAuthBtn) openAuthBtn.style.display = 'none';
     return;
   }
 
@@ -269,13 +261,17 @@ export function initAuth() {
 
 export function wireProfileUpload() {
   const wrap = document.getElementById('profilePicWrap');
-  const img = document.getElementById('profilePic');
-  const placeholder = document.getElementById('profilePlaceholder');
   const upload = document.getElementById('profileUpload');
+  const changeBtn = document.getElementById('settingsChangePhotoBtn');
 
   applyProfileAvatar(currentUser);
 
-  wrap?.addEventListener('click', () => upload?.click());
+  wrap?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openSettingsModal();
+  });
+
+  changeBtn?.addEventListener('click', () => upload?.click());
 
   upload?.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
@@ -284,10 +280,13 @@ export function wireProfileUpload() {
     reader.onload = (evt) => {
       const dataUrl = evt.target?.result;
       if (!dataUrl) return;
+      const img = document.getElementById('profilePic');
+      const placeholder = document.getElementById('profilePlaceholder');
       img.src = dataUrl;
       img.classList.remove('hidden');
       placeholder.classList.add('hidden');
       storeSet('profile_picture', dataUrl);
+      syncSettingsProfilePreview();
     };
     reader.readAsDataURL(file);
   });

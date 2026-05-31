@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>My Dashboard</title>
+<title>Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
@@ -290,13 +291,25 @@
   }
 
   .ring-percent {
-    font-family: var(--font-mono);
-    font-size: 40px;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1px;
     color: var(--text-primary);
     line-height: 1;
+    font-family: var(--font-sans);
+  }
+  .ring-pct-val {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .ring-pct-sym {
+    font-size: 22px;
+    font-weight: 600;
+    opacity: 0.9;
+    margin-bottom: 2px;
   }
 
   .ring-phase {
@@ -582,7 +595,7 @@
     background: rgba(255,255,255,0.055);
   }
   .goal-item:hover .goal-drag-handle,
-  .goal-item:hover .goal-delete {
+  .goal-item:hover .goal-row-menu {
     opacity: 1;
   }
 
@@ -720,21 +733,78 @@
     100% { background: rgba(255,255,255,0.035); transform: scale(1); }
   }
 
-  /* Delete button */
-  .goal-delete {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--text-tertiary);
-    opacity: 0.5;
-    padding: 2px 4px;
-    border-radius: 4px;
-    transition: color 0.2s, opacity 0.2s;
-    flex-shrink: 0;
+  .goal-emoji {
+    font-size: 16px;
     line-height: 1;
+    flex-shrink: 0;
+    margin-left: 6px;
+    opacity: 0.95;
   }
-  .goal-delete:hover { color: var(--danger); opacity: 1; }
+  .habit-subtask--editing {
+    padding: 4px 0;
+  }
+  .habit-subtask--editing .habit-step-input {
+    width: 100%;
+    margin: 0;
+  }
+
+  .goal-row-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0;
+    flex-shrink: 0;
+    transition: opacity 0.2s, background 0.2s;
+  }
+  .goal-row-menu span {
+    display: block;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+  }
+  .goal-row-menu:hover {
+    background: rgba(255,255,255,0.08);
+  }
+  .goal-row-menu:hover span { background: var(--text-secondary); }
+
+  .ctx-menu-item.is-danger { color: var(--danger); }
+  .ctx-menu-item.is-danger:hover { background: rgba(255,107,107,0.12); }
+  .ctx-menu-icon {
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.85;
+  }
+  .ctx-menu-emoji-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px 10px;
+  }
+  .ctx-emoji-pick {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .ctx-emoji-pick:hover {
+    background: rgba(255,255,255,0.12);
+    transform: scale(1.08);
+  }
 
   /* Empty state */
   .empty-state {
@@ -912,7 +982,6 @@
     border-color: rgba(255,255,255,0.28);
     color: var(--text-primary);
   }
-  .gm-chip-cal::before { content: '📅'; font-size: 11px; margin-right: 2px; }
   .gm-popover {
     position: absolute;
     bottom: calc(100% + 6px);
@@ -955,6 +1024,9 @@
     position: fixed;
     z-index: 3000;
     min-width: 200px;
+    max-height: min(70vh, calc(100vh - 24px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: rgba(18,18,20,0.98);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 12px;
@@ -1298,23 +1370,61 @@
   .profile-upload-input {
     display: none;
   }
-  .settings-btn {
-    width: 36px;
-    height: 36px;
+  .settings-profile-block {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .settings-profile-pic-wrap {
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.15);
     background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text-secondary);
-    font-size: 18px;
-    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .settings-profile-pic-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .settings-profile-placeholder {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s, border-color 0.2s;
+    font-size: 28px;
+    color: var(--text-tertiary);
   }
-  .settings-btn:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.2);
+  .settings-profile-meta { flex: 1; min-width: 0; }
+  .settings-profile-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+  .settings-change-photo-btn {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .settings-change-photo-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
   }
 
   /* ── Modal ── */
@@ -1630,24 +1740,17 @@
   .dash-panel.hidden { display: none !important; }
 
   /* ── Daily habits (in Today list) ── */
-  .goal-item--habit {
-    flex-wrap: wrap;
-    align-items: flex-start;
+  .goal-item--habit { flex-direction: column; align-items: stretch; }
+  .goal-item-main {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 22px;
   }
-  .goal-item--habit > .goal-drag-handle { opacity: 0.25; }
-  .habit-repeat-badge {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--accent-warm);
-    padding: 3px 7px;
-    border-radius: 6px;
-    background: rgba(232,118,88,0.12);
-    border: 1px solid rgba(232,118,88,0.25);
-    flex-shrink: 0;
-  }
+  .goal-item--habit > .goal-drag-handle { display: none; }
+  .goal-item-extra { width: 100%; }
   .habit-progress-pill {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -1660,7 +1763,7 @@
   .habit-subtasks {
     list-style: none;
     width: 100%;
-    margin: 8px 0 0 52px;
+    margin: 10px 0 0 34px;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -1676,7 +1779,7 @@
   .habit-subtask.is-done { color: var(--text-tertiary); text-decoration: line-through; }
   .habit-subtask .goal-checkbox-custom { width: 18px; height: 18px; }
   .habit-add-step-btn {
-    margin: 6px 0 0 52px;
+    margin: 6px 0 0 34px;
     padding: 0;
     border: none;
     background: none;
@@ -1687,21 +1790,71 @@
     font-family: var(--font-sans);
   }
   .habit-add-step-btn:hover { color: var(--text-secondary); }
-  .habit-steps-input {
-    width: 100%;
-    margin: 0 0 10px;
+  .habit-steps-builder {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 12px;
+  }
+  .habit-step-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .habit-step-input {
+    flex: 1;
     padding: 10px 12px;
     border-radius: 10px;
     background: rgba(0,0,0,0.25);
     border: 1px solid var(--border-subtle);
-    color: var(--text-secondary);
+    color: var(--text-primary);
     font-size: 13px;
     font-family: var(--font-sans);
   }
-  .habit-steps-input:focus {
+  .habit-step-input::placeholder { color: var(--text-tertiary); }
+  .habit-step-input:focus {
     outline: none;
     border-color: rgba(232,118,88,0.4);
-    color: var(--text-primary);
+  }
+  .habit-step-remove {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+  }
+  .habit-step-row:hover .habit-step-remove,
+  .habit-step-remove:focus { opacity: 1; }
+  .habit-step-remove:hover {
+    color: var(--danger);
+    background: rgba(255,107,107,0.1);
+  }
+  .habit-step-add-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px dashed rgba(255,255,255,0.14);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .habit-step-add-btn:hover {
+    border-color: rgba(232,118,88,0.45);
+    color: var(--text-secondary);
+    background: rgba(232,118,88,0.08);
   }
   .gm-chip.is-habit-mode {
     color: var(--accent-warm);
@@ -1863,10 +2016,8 @@
 </head>
 <body>
 <!-- Profile Section -->
-<button type="button" class="account-btn" id="openAuthBtn" title="Sign in to sync across devices">Account</button>
 <div class="profile-section">
-  <button class="settings-btn" id="settingsBtn" title="Settings">⚙️</button>
-  <div class="profile-pic-wrap" id="profilePicWrap" title="Click to upload photo · Double-click for account">
+  <div class="profile-pic-wrap" id="profilePicWrap" title="Open settings">
     <img class="profile-pic hidden" id="profilePic" alt="Profile" />
     <div class="profile-placeholder" id="profilePlaceholder">👤</div>
   </div>
@@ -1920,7 +2071,7 @@
           filter="url(#ringGlow)" />
       </svg>
       <div class="ring-text-overlay">
-        <div class="ring-percent" id="ringPercent">—</div>
+        <div class="ring-percent" id="ringPercent" aria-live="polite"><span class="ring-pct-val">—</span></div>
         <div class="ring-phase"  id="ringPhase">READY</div>
         <div class="ring-clock"  id="ringClock">—</div>
       </div>
@@ -1972,12 +2123,15 @@
       <div class="gm-compose" id="todayCompose">
         <div class="gm-compose-box">
           <input type="text" class="gm-compose-input" id="goalInput" placeholder="Add a new task…" autocomplete="off" />
-          <input type="text" class="habit-steps-input hidden" id="todayHabitStepsInput" placeholder="Routine steps (comma-separated): vitamins, 50 pushups, stretch…" autocomplete="off" />
+          <div class="habit-steps-builder hidden" id="todayHabitStepsBuilder" aria-label="Routine steps">
+            <div class="habit-steps-list" id="todayHabitStepsList"></div>
+            <button type="button" class="habit-step-add-btn" id="todayHabitStepAdd">+ Add step</button>
+          </div>
           <div class="gm-compose-footer">
             <div class="gm-compose-chips" id="todayComposeChips">
               <button type="button" class="gm-chip gm-chip-habit" id="todayHabitChip" title="Repeats daily with streak tracking">🔁 Daily habit</button>
-              <button type="button" class="gm-chip gm-chip-flag" id="todayPriorityChip" title="Priority">🏳 P2</button>
-              <button type="button" class="gm-chip gm-chip-cal" id="todayDueChip" title="Due date">Due date</button>
+              <button type="button" class="gm-chip gm-chip-flag" id="todayPriorityChip" title="Priority">🟠 Priority</button>
+              <button type="button" class="gm-chip gm-chip-cal" id="todayDueChip" title="Due date">📅 Due date</button>
             </div>
             <div class="gm-compose-actions">
               <button type="button" class="gm-compose-cancel" id="todayComposeCancel">Cancel</button>
@@ -2004,8 +2158,8 @@
           <input type="text" class="gm-compose-input" id="tomorrowInput" placeholder="Add a new task…" autocomplete="off" />
           <div class="gm-compose-footer">
             <div class="gm-compose-chips" id="tomorrowComposeChips">
-              <button type="button" class="gm-chip gm-chip-flag" id="tomorrowPriorityChip" title="Priority">🏳 P2</button>
-              <button type="button" class="gm-chip gm-chip-cal" id="tomorrowDueChip" title="Due date">Due date</button>
+              <button type="button" class="gm-chip gm-chip-flag" id="tomorrowPriorityChip" title="Priority">🟠 Priority</button>
+              <button type="button" class="gm-chip gm-chip-cal" id="tomorrowDueChip" title="Due date">📅 Due date</button>
             </div>
             <div class="gm-compose-actions">
               <button type="button" class="gm-compose-cancel" id="tomorrowComposeCancel">Cancel</button>
@@ -2116,8 +2270,25 @@
 <div class="modal-overlay hidden" id="settingsModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Settings & Stats</div>
+      <div class="modal-title">Settings</div>
       <button class="modal-close" id="modalClose">×</button>
+    </div>
+
+    <div class="settings-profile-block">
+      <div class="settings-profile-pic-wrap">
+        <img class="profile-pic hidden" id="settingsProfilePic" alt="" />
+        <div class="settings-profile-placeholder" id="settingsProfilePlaceholder">👤</div>
+      </div>
+      <div class="settings-profile-meta">
+        <div class="settings-profile-label">Profile</div>
+        <button type="button" class="settings-change-photo-btn" id="settingsChangePhotoBtn">Change photo</button>
+      </div>
+    </div>
+
+    <div class="modal-section hidden" id="settingsSignInSection">
+      <div class="modal-section-title">Sync</div>
+      <p class="auth-hint" style="margin-bottom:12px">Sign in to sync across devices. Your data stays instant locally.</p>
+      <button type="button" class="modal-save-btn" id="settingsSignInBtn" style="margin-top:0">Sign in</button>
     </div>
 
     <div class="modal-section hidden" id="settingsAccountSection">
@@ -2204,10 +2375,10 @@ function priorityLevel(g) {
   return 'unassigned';
 }
 function priorityChipLabel(p) {
-  if (p === 'high') return '🏳 P1';
-  if (p === 'medium') return '🏳 P2';
-  if (p === 'low') return '🏳 P3';
-  return '🏳 P2';
+  if (p === 'high') return '🔴 P1';
+  if (p === 'medium') return '🟠 P2';
+  if (p === 'low') return '🟢 P3';
+  return '🟠 Priority';
 }
 
 // ── Stats (lifetime — never lost when tasks deleted) ──
@@ -2432,13 +2603,10 @@ function renderStatsPanel() {
   document.getElementById('statDaysTracked').textContent = daysTracked;
   document.getElementById('statBestStreak').textContent = `${bestStreak} days`;
 }
+window.renderStatsPanel = renderStatsPanel;
 
 (function() {
   const modal = document.getElementById('settingsModal');
-  document.getElementById('settingsBtn').addEventListener('click', () => {
-    renderStatsPanel();
-    modal.classList.remove('hidden');
-  });
   document.getElementById('modalClose').addEventListener('click', () => modal.classList.add('hidden'));
   document.getElementById('modalSave').addEventListener('click', () => modal.classList.add('hidden'));
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
@@ -2746,8 +2914,16 @@ function showTaskContextMenu(e, idx, key, listKind) {
   const reloadFn = listKind === 'today' ? loadToday : loadTomorrow;
   const menu = document.createElement('div');
   menu.className = 'ctx-menu';
-  menu.style.left = Math.min(e.clientX, window.innerWidth - 220) + 'px';
-  menu.style.top = Math.min(e.clientY, window.innerHeight - 280) + 'px';
+  const cursorAnchor = {
+    getBoundingClientRect: () => ({
+      top: e.clientY,
+      bottom: e.clientY,
+      left: e.clientX,
+      right: e.clientX,
+      width: 0,
+      height: 0,
+    }),
+  };
 
   const priTitle = document.createElement('div');
   priTitle.className = 'ctx-menu-title';
@@ -2798,8 +2974,256 @@ function showTaskContextMenu(e, idx, key, listKind) {
     menu.appendChild(item);
   });
 
-  document.body.appendChild(menu);
+  positionFloatingMenu(menu, cursorAnchor);
   ctxMenuEl = menu;
+}
+
+// ── Row action menu (⋯ on hover) ──
+let rowMenuEl = null;
+const EMOJI_PRESETS = ['💪', '🧠', '📚', '☀️', '💊', '🏃', '💧', '🧘', '✍️', '🎯'];
+
+function closeRowMenu() {
+  if (rowMenuEl) { rowMenuEl.remove(); rowMenuEl = null; }
+}
+document.addEventListener('click', closeRowMenu);
+
+function createRowMenuButton() {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'goal-row-menu';
+  btn.setAttribute('aria-label', 'Options');
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement('span');
+    btn.appendChild(dot);
+  }
+  return btn;
+}
+
+function placeEmojiAfterTitle(row, textEl, emoji) {
+  let el = row.querySelector('.goal-emoji');
+  if (emoji) {
+    if (!el) {
+      el = document.createElement('span');
+      el.className = 'goal-emoji';
+      textEl.insertAdjacentElement('afterend', el);
+    }
+    el.textContent = emoji;
+  } else if (el) {
+    el.remove();
+  }
+}
+
+function beginInlineHabitStep(habitId, extraEl) {
+  if (!extraEl) return;
+  let subUl = extraEl.querySelector('.habit-subtasks');
+  if (!subUl) {
+    subUl = document.createElement('ul');
+    subUl.className = 'habit-subtasks';
+    const addBtn = extraEl.querySelector('.habit-add-step-btn');
+    extraEl.insertBefore(subUl, addBtn || null);
+  }
+
+  if (subUl.querySelector('.habit-subtask--editing')) return;
+
+  const subLi = document.createElement('li');
+  subLi.className = 'habit-subtask habit-subtask--editing';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'habit-step-input';
+  input.placeholder = 'Step name…';
+  input.autocomplete = 'off';
+
+  let finished = false;
+  const cancel = () => { if (!finished) { finished = true; subLi.remove(); } };
+  const commit = () => {
+    if (finished) return;
+    finished = true;
+    const text = input.value.trim();
+    if (!text) { subLi.remove(); return; }
+    const habits = getHabits();
+    const h = habits.find(x => x.id === habitId);
+    if (!h) { subLi.remove(); return; }
+    if (!h.subtasks) h.subtasks = [];
+    h.subtasks.push({ id: 'st_' + Date.now(), text });
+    saveHabits(habits);
+    loadToday();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', () => { setTimeout(commit, 0); });
+
+  subLi.appendChild(input);
+  subUl.appendChild(subLi);
+  input.focus();
+}
+
+function positionFloatingMenu(menu, anchor) {
+  const pad = 12;
+  const gap = 8;
+  menu.style.position = 'fixed';
+  menu.style.visibility = 'hidden';
+  menu.style.left = '0';
+  menu.style.top = '0';
+  document.body.appendChild(menu);
+
+  const anchorRect = anchor.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const maxH = window.innerHeight - pad * 2;
+
+  let top = anchorRect.bottom + gap;
+  let left = anchorRect.right - menuRect.width;
+  left = Math.max(pad, Math.min(left, window.innerWidth - menuRect.width - pad));
+
+  if (top + menuRect.height > window.innerHeight - pad) {
+    const above = anchorRect.top - menuRect.height - gap;
+    top = above >= pad ? above : Math.max(pad, window.innerHeight - pad - menuRect.height);
+  }
+  if (top < pad) top = pad;
+
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+  menu.style.maxHeight = `${maxH}px`;
+  menu.style.overflowY = 'auto';
+  menu.style.visibility = 'visible';
+}
+
+function showRowActionMenu(anchor, sections) {
+  closeRowMenu();
+  closeContextMenu();
+  const menu = document.createElement('div');
+  menu.className = 'ctx-menu row-action-menu';
+  menu.addEventListener('click', (e) => e.stopPropagation());
+
+  sections.forEach((section, si) => {
+    if (section.title) {
+      const t = document.createElement('div');
+      t.className = 'ctx-menu-title';
+      t.textContent = section.title;
+      menu.appendChild(t);
+    }
+    if (section.emojiRow) {
+      const row = document.createElement('div');
+      row.className = 'ctx-menu-emoji-row';
+      EMOJI_PRESETS.forEach(em => {
+        const pick = document.createElement('button');
+        pick.type = 'button';
+        pick.className = 'ctx-emoji-pick';
+        pick.textContent = em;
+        pick.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeRowMenu();
+          section.onEmojiPick(em);
+        });
+        row.appendChild(pick);
+      });
+      menu.appendChild(row);
+      const custom = document.createElement('div');
+      custom.className = 'ctx-menu-item';
+      custom.textContent = 'Custom emoji…';
+      custom.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeRowMenu();
+        const val = prompt('Paste an emoji (leave empty to remove):', section.currentEmoji || '');
+        if (val !== null) section.onEmojiPick(val.trim() || null);
+      });
+      menu.appendChild(custom);
+    }
+    section.items?.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'ctx-menu-item' + (item.danger ? ' is-danger' : '');
+      if (item.dot) {
+        const dot = document.createElement('span');
+        dot.className = 'priority-dot';
+        dot.dataset.p = item.dot;
+        row.appendChild(dot);
+      }
+      if (item.icon) {
+        const ic = document.createElement('span');
+        ic.className = 'ctx-menu-icon';
+        ic.textContent = item.icon;
+        row.appendChild(ic);
+      }
+      row.appendChild(document.createTextNode(item.label));
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeRowMenu();
+        item.action();
+      });
+      menu.appendChild(row);
+    });
+    if (si < sections.length - 1 && !section.emojiOnly) {
+      const sep = document.createElement('div');
+      sep.className = 'ctx-menu-sep';
+      menu.appendChild(sep);
+    }
+  });
+
+  positionFloatingMenu(menu, anchor);
+  rowMenuEl = menu;
+}
+
+function taskRowMenuSections(g, idx, key, listKind, li, textEl, priorityEl) {
+  const reloadFn = listKind === 'today' ? loadToday : loadTomorrow;
+  const sections = [
+    {
+      title: 'Priority',
+      items: [
+        { dot: 'high', label: 'High priority', action: () => {
+          setGoalField(key, idx, { priority: 'high' }, reloadFn);
+        }},
+        { dot: 'medium', label: 'Medium priority', action: () => {
+          setGoalField(key, idx, { priority: 'medium' }, reloadFn);
+        }},
+        { dot: 'low', label: 'Low priority', action: () => {
+          setGoalField(key, idx, { priority: 'low' }, reloadFn);
+        }},
+        { dot: 'unassigned', label: 'Unassigned', action: () => {
+          setGoalField(key, idx, { priority: undefined }, reloadFn);
+        }},
+      ],
+    },
+    {
+      items: [
+        ...(listKind === 'today' ? [{
+          icon: '⚡',
+          label: g.queued ? 'Remove from queue' : 'Mark as in progress',
+          action: () => {
+            const data = storeGet(key) || [];
+            data[idx].queued = !data[idx].queued;
+            storeSet(key, data);
+            reloadFn();
+          },
+        }] : []),
+        { icon: '✎', label: 'Rename', action: () => { textEl.click(); }},
+      ],
+    },
+    {
+      title: 'Emoji',
+      emojiRow: true,
+      currentEmoji: g.emoji,
+      onEmojiPick: (em) => {
+        const data = storeGet(key) || [];
+        if (em) data[idx].emoji = em;
+        else delete data[idx].emoji;
+        storeSet(key, data);
+        reloadFn();
+      },
+    },
+    {
+      items: [
+        { icon: '🗑', label: 'Delete', danger: true, action: () => {
+          const data = storeGet(key) || [];
+          data.splice(idx, 1);
+          storeSet(key, data);
+          reloadFn();
+        }},
+      ],
+    },
+  ];
+  return sections;
 }
 
 // ── Build goal row ──
@@ -2834,7 +3258,7 @@ function buildGoalRow(g, idx, goals, key, listKind) {
   const priority = document.createElement('span');
   priority.className = 'goal-priority';
   priority.dataset.priority = priorityLevel(g);
-  priority.title = 'Click to change priority';
+  priority.title = 'Priority';
   priorityWrap.appendChild(priority);
   li.appendChild(priorityWrap);
 
@@ -2843,6 +3267,7 @@ function buildGoalRow(g, idx, goals, key, listKind) {
   textEl.textContent = g.text;
   makeInlineEdit(textEl, idx, key, reload);
   li.appendChild(textEl);
+  placeEmojiAfterTitle(li, textEl, g.emoji);
 
   if (g.dueDate) {
     const dueBadge = document.createElement('span');
@@ -2855,33 +3280,26 @@ function buildGoalRow(g, idx, goals, key, listKind) {
     li.appendChild(dueBadge);
   }
 
-  const qBtn = document.createElement('button');
-  qBtn.className = 'gm-queue-btn' + (g.queued ? ' active' : '');
-  qBtn.textContent = '⚡';
-  qBtn.title = g.queued ? 'Remove from queue' : 'Queue for productivity window';
-  if (isTomorrow) qBtn.disabled = true;
-  li.appendChild(qBtn);
+  if (g.queued && listKind === 'today') {
+    const qHint = document.createElement('span');
+    qHint.className = 'gm-queue-btn active';
+    qHint.textContent = '⚡';
+    qHint.title = 'In progress';
+    qHint.style.pointerEvents = 'none';
+    li.appendChild(qHint);
+  }
 
-  const delBtn = document.createElement('button');
-  delBtn.className = 'goal-delete';
-  delBtn.textContent = '×';
-  delBtn.title = 'Delete goal';
-  li.appendChild(delBtn);
-
-  priority.addEventListener('click', (e) => {
+  const menuBtn = createRowMenuButton();
+  menuBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    showPopover(priority, [
-      { value: 'high', label: 'P1 (High)', dot: 'high' },
-      { value: 'medium', label: 'P2 (Medium)', dot: 'medium' },
-      { value: 'low', label: 'P3 (Low)', dot: 'low' },
-      { value: 'unassigned', label: 'Unassigned (gray)', dot: 'unassigned' },
-    ], (val) => {
-      setGoalField(key, idx, { priority: val === 'unassigned' ? undefined : val },
-        listKind === 'today' ? loadToday : loadTomorrow);
-    });
+    showRowActionMenu(menuBtn, taskRowMenuSections(g, idx, key, listKind, li, textEl, priority));
   });
+  li.appendChild(menuBtn);
 
-  li.addEventListener('contextmenu', (e) => showTaskContextMenu(e, idx, key, listKind));
+  li.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showRowActionMenu(menuBtn, taskRowMenuSections(g, idx, key, listKind, li, textEl, priority));
+  });
 
   cb.addEventListener('change', () => {
     const data = storeGet(key) || [];
@@ -2897,27 +3315,6 @@ function buildGoalRow(g, idx, goals, key, listKind) {
     const rld = listKind === 'today' ? loadToday : loadTomorrow;
     rld();
     if (listKind === 'today') { runStreakCheck(); renderStreak(); }
-  });
-
-  // ── Queue toggle ──
-  qBtn.addEventListener('click', () => {
-    const data = storeGet(key) || [];
-    data[idx].queued = !data[idx].queued;
-    storeSet(key, data);
-    li.classList.add('is-queue-flashing');
-    setTimeout(() => {
-      const rld = key === 'goals:' + getActiveDateString() ? loadToday : loadTomorrow;
-      rld();
-    }, 480);
-  });
-
-  // ── Delete ──
-  delBtn.addEventListener('click', () => {
-    const data = storeGet(key) || [];
-    data.splice(idx, 1);
-    storeSet(key, data);
-    const rld = key === 'goals:' + getActiveDateString() ? loadToday : loadTomorrow;
-    rld();
   });
 
   wireDragReorder(li, idx, key, reload);
@@ -3225,11 +3622,65 @@ const composeDraft = {
 };
 
 function dueChipLabel(preset) {
-  if (!preset) return 'Due date';
-  if (preset === 'today') return 'Today';
-  if (preset === 'tomorrow') return 'Tomorrow';
-  if (preset === 'next-week') return 'Next week';
-  return 'Due date';
+  if (!preset) return '📅 Due date';
+  if (preset === 'today') return '📅 Today';
+  if (preset === 'tomorrow') return '📅 Tomorrow';
+  if (preset === 'next-week') return '📅 Next week';
+  return '📅 Due date';
+}
+
+// ── Habit step builder (stacked inputs, not comma-separated) ──
+function clearHabitStepsBuilder() {
+  const list = document.getElementById('todayHabitStepsList');
+  if (list) list.innerHTML = '';
+}
+
+function addHabitStepRow(value = '') {
+  const list = document.getElementById('todayHabitStepsList');
+  if (!list) return;
+
+  const row = document.createElement('div');
+  row.className = 'habit-step-row';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'habit-step-input';
+  input.placeholder = 'Step name (e.g. Take vitamins)';
+  input.autocomplete = 'off';
+  input.value = value;
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'habit-step-remove';
+  removeBtn.setAttribute('aria-label', 'Remove step');
+  removeBtn.textContent = '×';
+  removeBtn.addEventListener('click', () => {
+    if (list.children.length <= 1) {
+      input.value = '';
+      return;
+    }
+    row.remove();
+  });
+
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  list.appendChild(row);
+  input.focus();
+}
+
+function initHabitStepsBuilder() {
+  clearHabitStepsBuilder();
+  addHabitStepRow();
+}
+
+function collectHabitStepsFromBuilder() {
+  const inputs = document.querySelectorAll('#todayHabitStepsList .habit-step-input');
+  const steps = [];
+  inputs.forEach((inp, i) => {
+    const text = inp.value.trim();
+    if (text) steps.push({ id: 'st_' + Date.now() + '_' + i, text });
+  });
+  return steps;
 }
 
 function setTodayHabitComposeMode(on) {
@@ -3238,7 +3689,7 @@ function setTodayHabitComposeMode(on) {
   const habitChip = document.getElementById('todayHabitChip');
   const priChip = document.getElementById('todayPriorityChip');
   const dueChip = document.getElementById('todayDueChip');
-  const stepsInput = document.getElementById('todayHabitStepsInput');
+  const stepsBuilder = document.getElementById('todayHabitStepsBuilder');
   const addBtn = document.getElementById('goalAddBtn');
   const goalInput = document.getElementById('goalInput');
 
@@ -3246,15 +3697,16 @@ function setTodayHabitComposeMode(on) {
   habitChip?.classList.toggle('is-active', on);
   priChip?.classList.toggle('hidden', on);
   dueChip?.classList.toggle('hidden', on);
-  stepsInput?.classList.toggle('hidden', !on);
+  stepsBuilder?.classList.toggle('hidden', !on);
 
   if (on) {
     goalInput.placeholder = 'Habit name (e.g. Morning routine)…';
     if (addBtn) addBtn.textContent = 'Add habit';
+    if (!document.querySelector('#todayHabitStepsList .habit-step-input')) initHabitStepsBuilder();
   } else {
     goalInput.placeholder = 'Add a new task…';
     if (addBtn) addBtn.textContent = 'Add task';
-    if (stepsInput) stepsInput.value = '';
+    clearHabitStepsBuilder();
   }
 }
 
@@ -3268,6 +3720,7 @@ function initComposeChips(which) {
     habitChip?.addEventListener('click', () => {
       setTodayHabitComposeMode(!draft.isHabit);
     });
+    document.getElementById('todayHabitStepAdd')?.addEventListener('click', () => addHabitStepRow());
   }
 
   priChip.addEventListener('click', (e) => {
@@ -3316,12 +3769,11 @@ function makeAddHandlers(inputId, addBtnId, keyFn, reloadFn, composeWhich) {
     draft.priority = undefined;
     draft.duePreset = null;
     if (composeWhich === 'today' && draft.isHabit) setTodayHabitComposeMode(false);
-    document.getElementById(composeWhich + 'PriorityChip').textContent = '🏳 P2';
-    document.getElementById(composeWhich + 'DueChip').textContent = 'Due date';
+    document.getElementById(composeWhich + 'PriorityChip').textContent = priorityChipLabel();
+    document.getElementById(composeWhich + 'DueChip').textContent = dueChipLabel();
     document.getElementById(composeWhich + 'PriorityChip').classList.remove('is-active');
     document.getElementById(composeWhich + 'DueChip').classList.remove('is-active');
-    const steps = document.getElementById('todayHabitStepsInput');
-    if (steps) steps.value = '';
+    clearHabitStepsBuilder();
   }
 
   const cancelBtn = document.getElementById(composeWhich + 'ComposeCancel');
@@ -3333,25 +3785,16 @@ function makeAddHandlers(inputId, addBtnId, keyFn, reloadFn, composeWhich) {
     });
   }
 
-  function parseHabitSteps(raw) {
-    return raw
-      .split(/[,;\n]+/)
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map((text, i) => ({ id: 'st_' + Date.now() + '_' + i, text }));
-  }
-
   function doAdd() {
     const text = input.value.trim();
     if (!text) return;
 
     if (composeWhich === 'today' && draft.isHabit) {
-      const stepsRaw = document.getElementById('todayHabitStepsInput')?.value || '';
       const habits = getHabits();
       habits.push({
         id: 'h_' + Date.now(),
         text,
-        subtasks: parseHabitSteps(stepsRaw),
+        subtasks: collectHabitStepsFromBuilder(),
         subtaskLog: {},
         history: {},
         streak: 0,
@@ -3607,6 +4050,39 @@ function setHabitDoneForToday(h, checked, today) {
   h.streak = computeHabitStreak(h.history, today);
   if (h.streak > (h.bestStreak || 0)) h.bestStreak = h.streak;
 }
+function habitRowMenuSections(habit, textEl, extraEl) {
+  return [
+    {
+      items: [
+        { icon: '✎', label: 'Rename', action: () => { textEl.click(); }},
+        { icon: '➕', label: 'Add step', action: () => beginInlineHabitStep(habit.id, extraEl) },
+      ],
+    },
+    {
+      title: 'Emoji',
+      emojiRow: true,
+      currentEmoji: habit.emoji,
+      onEmojiPick: (em) => {
+        const habits = getHabits();
+        const h = habits.find(x => x.id === habit.id);
+        if (!h) return;
+        if (em) h.emoji = em;
+        else delete h.emoji;
+        saveHabits(habits);
+        loadToday();
+      },
+    },
+    {
+      items: [
+        { icon: '🗑', label: 'Delete', danger: true, action: () => {
+          saveHabits(getHabits().filter(x => x.id !== habit.id));
+          loadToday();
+        }},
+      ],
+    },
+  ];
+}
+
 function buildHabitRow(habit) {
   const today = getActiveDateString();
   const li = document.createElement('li');
@@ -3617,10 +4093,8 @@ function buildHabitRow(habit) {
   habit.streak = streak;
   if (streak > (habit.bestStreak || 0)) habit.bestStreak = streak;
 
-  const handle = document.createElement('span');
-  handle.className = 'goal-drag-handle';
-  handle.textContent = '⋮⋮';
-  li.appendChild(handle);
+  const main = document.createElement('div');
+  main.className = 'goal-item-main';
 
   const cbWrap = document.createElement('label');
   cbWrap.className = 'goal-checkbox-wrap';
@@ -3631,28 +4105,30 @@ function buildHabitRow(habit) {
   cbCustom.className = 'goal-checkbox-custom';
   cbWrap.appendChild(cb);
   cbWrap.appendChild(cbCustom);
-  li.appendChild(cbWrap);
+  main.appendChild(cbWrap);
 
-  const repeatBadge = document.createElement('span');
-  repeatBadge.className = 'habit-repeat-badge';
-  repeatBadge.textContent = 'Daily';
-  li.appendChild(repeatBadge);
+  const priorityWrap = document.createElement('div');
+  priorityWrap.className = 'goal-priority-wrap';
+  const priority = document.createElement('span');
+  priority.className = 'goal-priority';
+  priority.dataset.priority = streak > 0 ? 'medium' : 'unassigned';
+  priority.title = 'Daily habit';
+  priorityWrap.appendChild(priority);
+  main.appendChild(priorityWrap);
 
   const textEl = document.createElement('span');
   textEl.className = 'goal-text';
   textEl.textContent = habit.text;
-  makeInlineEdit(textEl, null, null, loadToday, {
-    isHabit: true,
-    habitId: habit.id,
-  });
-  li.appendChild(textEl);
+  makeInlineEdit(textEl, null, null, loadToday, { isHabit: true, habitId: habit.id });
+  main.appendChild(textEl);
+  placeEmojiAfterTitle(main, textEl, habit.emoji);
 
   const prog = subtaskProgress(habit, today);
   if (prog) {
     const progPill = document.createElement('span');
     progPill.className = 'habit-progress-pill';
     progPill.textContent = `${prog.done}/${prog.total}`;
-    li.appendChild(progPill);
+    main.appendChild(progPill);
   }
 
   const streakPill = document.createElement('span');
@@ -3664,18 +4140,23 @@ function buildHabitRow(habit) {
     best.textContent = `best ${habit.bestStreak}`;
     streakPill.appendChild(best);
   }
-  li.appendChild(streakPill);
+  main.appendChild(streakPill);
 
-  const delBtn = document.createElement('button');
-  delBtn.className = 'goal-delete';
-  delBtn.textContent = '×';
-  delBtn.title = 'Remove daily habit';
-  li.appendChild(delBtn);
+  const menuBtn = createRowMenuButton();
+  const extra = document.createElement('div');
+  extra.className = 'goal-item-extra';
+  const subUl = document.createElement('ul');
+  subUl.className = 'habit-subtasks';
 
-  if ((habit.subtasks || []).length > 0) {
-    const subUl = document.createElement('ul');
-    subUl.className = 'habit-subtasks';
-    habit.subtasks.forEach(st => {
+  const menuSections = habitRowMenuSections(habit, textEl, extra);
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showRowActionMenu(menuBtn, menuSections);
+  });
+  main.appendChild(menuBtn);
+  li.appendChild(main);
+
+  (habit.subtasks || []).forEach(st => {
       const subLi = document.createElement('li');
       subLi.className = 'habit-subtask';
       const log = getSubtaskLogForToday(habit, today);
@@ -3713,25 +4194,15 @@ function buildHabitRow(habit) {
 
       subUl.appendChild(subLi);
     });
-    li.appendChild(subUl);
-  }
 
+  extra.appendChild(subUl);
   const addStepBtn = document.createElement('button');
   addStepBtn.type = 'button';
   addStepBtn.className = 'habit-add-step-btn';
   addStepBtn.textContent = '+ Add step';
-  addStepBtn.addEventListener('click', () => {
-    const step = prompt('Step name (e.g. Take vitamins)');
-    if (!step || !step.trim()) return;
-    const habits = getHabits();
-    const h = habits.find(x => x.id === habit.id);
-    if (!h) return;
-    if (!h.subtasks) h.subtasks = [];
-    h.subtasks.push({ id: 'st_' + Date.now(), text: step.trim() });
-    saveHabits(habits);
-    loadToday();
-  });
-  li.appendChild(addStepBtn);
+  addStepBtn.addEventListener('click', () => beginInlineHabitStep(habit.id, extra));
+  extra.appendChild(addStepBtn);
+  li.appendChild(extra);
 
   cb.addEventListener('change', () => {
     const habits = getHabits();
@@ -3742,10 +4213,9 @@ function buildHabitRow(habit) {
     loadToday();
   });
 
-  delBtn.addEventListener('click', () => {
-    if (!confirm('Remove this daily habit?')) return;
-    saveHabits(getHabits().filter(x => x.id !== habit.id));
-    loadToday();
+  li.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showRowActionMenu(menuBtn, menuSections);
   });
 
   return li;
@@ -3847,6 +4317,20 @@ function loadReflection() {
   const ringRemaining = document.getElementById('ringRemaining');
   const startOverlay = document.getElementById('ringStartOverlay');
 
+  function setRingPercentDisplay(value) {
+    if (value === '—' || value === null || value === undefined) {
+      ringPercent.innerHTML = '<span class="ring-pct-val">—</span>';
+      return;
+    }
+    const n = typeof value === 'number' ? Math.round(value) : parseInt(String(value), 10);
+    if (Number.isNaN(n)) {
+      ringPercent.innerHTML = '<span class="ring-pct-val">—</span>';
+      return;
+    }
+    ringPercent.innerHTML =
+      `<span class="ring-pct-val">${n}</span><span class="ring-pct-sym">%</span>`;
+  }
+
   const palette = [
     [255,216,158],  // 0%
     [255,205,121],  // 12.5%
@@ -3906,7 +4390,7 @@ function loadReflection() {
     const offset = C * (1 - Math.min(100, Math.max(0, pct)) / 100);
     ringFill.setAttribute('stroke-dashoffset', offset);
     ringFill.setAttribute('stroke', lerpColor(pct / 100));
-    ringPercent.textContent = Math.round(pct) + '%';
+    setRingPercentDisplay(pct);
     ringRemaining.textContent = fmtHM(remaining) + ' awake time left';
     let phase, status;
     if (pct < 25) { phase = 'MORNING'; status = phaseLabels[0]; }
@@ -3921,7 +4405,7 @@ function loadReflection() {
   function showRingIdle() {
     ringFill.setAttribute('stroke-dashoffset', C);
     ringFill.setAttribute('stroke', '#4D4B47');
-    ringPercent.textContent = '—';
+    setRingPercentDisplay('—');
     ringPhase.textContent   = 'READY';
     ringStatus.textContent  = DAY_MODE === 'manual'
       ? 'Click circle to start your day'
@@ -3951,7 +4435,7 @@ function loadReflection() {
       if (nowMs >= dayEndTime) {
         ringFill.setAttribute('stroke-dashoffset', 0);
         ringFill.setAttribute('stroke', '#E25D7A');
-        ringPercent.textContent = '100%';
+        setRingPercentDisplay(100);
         ringPhase.textContent = 'DAY DONE';
         ringStatus.textContent = '🌙 Awake window ended';
         ringRemaining.textContent = 'Rest up!';
@@ -3975,7 +4459,7 @@ function loadReflection() {
     if (!prog) {
       ringFill.setAttribute('stroke-dashoffset', C);
       ringFill.setAttribute('stroke', '#4D4B47');
-      ringPercent.textContent = '—';
+      setRingPercentDisplay('—');
       ringPhase.textContent = 'OFF HOURS';
       ringStatus.textContent = '😴 Outside awake window';
       const overnight = SLEEP_HOUR <= WAKE_HOUR;
