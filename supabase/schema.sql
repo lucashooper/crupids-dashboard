@@ -1,5 +1,5 @@
--- Crupids Dashboard — run in Supabase SQL Editor
--- Requires: Auth enabled; RLS on by default for new tables
+-- Crupids Dashboard — run in Supabase SQL Editor (Dashboard → SQL → New query)
+-- Requires: Auth enabled; run this entire file once so RLS policies exist for sync.
 
 -- ── Tasks (one row per calendar day, goals stored as JSON array) ──
 create table if not exists public.tasks (

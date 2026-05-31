@@ -4,6 +4,7 @@ const SYNC_DEBOUNCE_MS = 450;
 const PREFS_DEBOUNCE_MS = 800;
 
 let cachedUserId = null;
+let syncEnabled = false;
 const pendingSync = new Map();
 let prefsTimer = null;
 
@@ -66,8 +67,33 @@ export function setSyncedUserId(userId) {
   cachedUserId = userId || null;
 }
 
+export function setSyncEnabled(enabled) {
+  syncEnabled = enabled;
+  if (!enabled) clearPendingSync();
+}
+
+export function clearPendingSync() {
+  pendingSync.forEach(({ timer }) => clearTimeout(timer));
+  pendingSync.clear();
+  if (prefsTimer) {
+    clearTimeout(prefsTimer);
+    prefsTimer = null;
+  }
+}
+
+async function verifySessionForSync() {
+  if (!supabase || !cachedUserId) return false;
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+  if (error || !session?.access_token || !session.user?.id) return false;
+  if (session.user.id !== cachedUserId) cachedUserId = session.user.id;
+  return true;
+}
+
 function scheduleSync(key, value) {
-  if (!cachedUserId || !supabaseConfigured || !supabase) return;
+  if (!syncEnabled || !cachedUserId || !supabaseConfigured || !supabase) return;
 
   if (isPrefKey(key)) {
     schedulePrefsSync();
@@ -79,52 +105,58 @@ function scheduleSync(key, value) {
   const timer = setTimeout(() => {
     pendingSync.delete(key);
     pushKeyToSupabase(key, value).catch((err) => {
-      console.warn('[sync] push failed:', key, err);
+      console.warn('[sync] push failed:', key, err?.message || err);
     });
   }, SYNC_DEBOUNCE_MS);
   pendingSync.set(key, { timer, value });
 }
 
 function scheduleDelete(key) {
-  if (!cachedUserId || !supabaseConfigured || !supabase) return;
+  if (!syncEnabled || !cachedUserId || !supabaseConfigured || !supabase) return;
 
   if (key.startsWith('goals:')) {
     const taskDate = key.slice('goals:'.length);
-    supabase
-      .from('tasks')
-      .delete()
-      .eq('user_id', cachedUserId)
-      .eq('task_date', taskDate)
-      .then(({ error }) => {
-        if (error) console.warn('[sync] delete task failed:', error);
-      });
+    verifySessionForSync().then((ok) => {
+      if (!ok) return;
+      supabase
+        .from('tasks')
+        .delete()
+        .eq('user_id', cachedUserId)
+        .eq('task_date', taskDate)
+        .then(({ error }) => {
+          if (error) console.warn('[sync] delete task failed:', error.message || error);
+        });
+    });
     return;
   }
 
   if (key.startsWith('reflection:')) {
     const reflectionDate = key.slice('reflection:'.length);
-    supabase
-      .from('reflections')
-      .delete()
-      .eq('user_id', cachedUserId)
-      .eq('reflection_date', reflectionDate)
-      .then(({ error }) => {
-        if (error) console.warn('[sync] delete reflection failed:', error);
-      });
+    verifySessionForSync().then((ok) => {
+      if (!ok) return;
+      supabase
+        .from('reflections')
+        .delete()
+        .eq('user_id', cachedUserId)
+        .eq('reflection_date', reflectionDate)
+        .then(({ error }) => {
+          if (error) console.warn('[sync] delete reflection failed:', error.message || error);
+        });
+    });
   }
 }
 
 function schedulePrefsSync() {
-  if (!cachedUserId || !supabase) return;
+  if (!syncEnabled || !cachedUserId || !supabase) return;
   if (prefsTimer) clearTimeout(prefsTimer);
   prefsTimer = setTimeout(() => {
     prefsTimer = null;
-    pushPrefsBlob().catch((err) => console.warn('[sync] prefs failed:', err));
+    pushPrefsBlob().catch((err) => console.warn('[sync] prefs failed:', err?.message || err));
   }, PREFS_DEBOUNCE_MS);
 }
 
 async function pushKeyToSupabase(key, value) {
-  if (!cachedUserId || !supabase) return;
+  if (!(await verifySessionForSync())) return;
 
   if (key.startsWith('goals:')) {
     const taskDate = key.slice('goals:'.length);
@@ -196,7 +228,7 @@ function collectPrefsBlob() {
 }
 
 async function pushPrefsBlob() {
-  if (!cachedUserId || !supabase) return;
+  if (!(await verifySessionForSync())) return;
   const data = collectPrefsBlob();
   const { error } = await supabase.from('user_preferences').upsert(
     {
@@ -210,7 +242,7 @@ async function pushPrefsBlob() {
 }
 
 export async function pushAllLocalToSupabase() {
-  if (!cachedUserId || !supabase) return;
+  if (!(await verifySessionForSync())) return;
 
   const jobs = [];
   storeListKeys('goals:').forEach((key) => {
@@ -221,7 +253,12 @@ export async function pushAllLocalToSupabase() {
     jobs.push(pushKeyToSupabase(key, readLocal(key)));
   });
   jobs.push(pushPrefsBlob());
-  await Promise.all(jobs);
+  const results = await Promise.allSettled(jobs);
+  results.forEach((result, idx) => {
+    if (result.status === 'rejected') {
+      console.warn('[sync] bulk push item failed:', idx, result.reason?.message || result.reason);
+    }
+  });
 }
 
 /** Upload existing localStorage only when the user has no cloud rows yet (first device). */
@@ -232,7 +269,7 @@ export async function migrateLocalIfCloudEmpty(userId) {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId);
   if (error) {
-    console.warn('[sync] cloud check failed:', error);
+    console.warn('[sync] cloud check failed:', error.message || error);
     return;
   }
   if ((count ?? 0) > 0) return;
@@ -301,21 +338,4 @@ export async function hydrateFromSupabase(userId) {
   }
 
   window.dispatchEvent(new CustomEvent('data-hydrated'));
-}
-
-export async function handleAuthSessionEvent(event, session) {
-  if (!supabaseConfigured || !supabase) return;
-
-  const uid = session?.user?.id ?? null;
-  cachedUserId = uid;
-
-  if (
-    uid &&
-    (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')
-  ) {
-    await hydrateFromSupabase(uid);
-    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-      window.dispatchEvent(new CustomEvent('data-hydrated'));
-    }
-  }
 }

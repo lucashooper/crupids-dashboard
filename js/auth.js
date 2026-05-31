@@ -1,8 +1,9 @@
 import { supabase, supabaseConfigured } from './supabaseClient.js';
 import {
+  clearPendingSync,
   hydrateFromSupabase,
-  handleAuthSessionEvent,
   migrateLocalIfCloudEmpty,
+  setSyncEnabled,
   setSyncedUserId,
   storeGet,
   storeSet,
@@ -10,6 +11,8 @@ import {
 
 let currentUser = null;
 let authMode = 'signin';
+let signOutTimer = null;
+let sessionSetupPromise = null;
 
 export function getCurrentUser() {
   return currentUser;
@@ -146,12 +149,69 @@ function updateAccountUI(user) {
   }
 }
 
-function queueAuthSessionEvent(event, session) {
-  setTimeout(() => {
-    handleAuthSessionEvent(event, session).catch((err) => {
-      console.warn('[auth] session sync failed:', err);
-    });
-  }, 0);
+function cancelPendingSignOut() {
+  if (signOutTimer) {
+    clearTimeout(signOutTimer);
+    signOutTimer = null;
+  }
+}
+
+function scheduleSignedOutUI() {
+  cancelPendingSignOut();
+  signOutTimer = setTimeout(async () => {
+    signOutTimer = null;
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.user) {
+      console.info('[auth] Ignoring transient SIGNED_OUT — session still valid');
+      updateAccountUI(session.user);
+      setSyncedUserId(session.user.id);
+      setSyncEnabled(true);
+      setAppLocked(false);
+      hideAuthModal();
+      return;
+    }
+    console.info('[auth] Confirmed signed out');
+    setSyncEnabled(false);
+    setSyncedUserId(null);
+    updateAccountUI(null);
+    setAppLocked(true);
+    showAuthModal();
+    window.dispatchEvent(new CustomEvent('auth-changed'));
+  }, 400);
+}
+
+async function finishAuthenticatedSession(session, { migrate = false } = {}) {
+  const user = session?.user;
+  if (!user?.id) return;
+
+  cancelPendingSignOut();
+  setSyncEnabled(false);
+  clearPendingSync();
+  setSyncedUserId(user.id);
+  updateAccountUI(user);
+  setAppLocked(false);
+  hideAuthModal();
+
+  if (sessionSetupPromise) await sessionSetupPromise;
+
+  sessionSetupPromise = (async () => {
+    try {
+      await hydrateFromSupabase(user.id);
+      if (migrate) await migrateLocalIfCloudEmpty(user.id);
+    } catch (err) {
+      console.warn('[auth] cloud sync failed:', err?.message || err);
+      setAuthStatus('Signed in, but cloud sync had a problem. Your local data still works.', true);
+    } finally {
+      setSyncEnabled(true);
+      window.dispatchEvent(new CustomEvent('auth-changed'));
+    }
+  })();
+
+  await sessionSetupPromise;
+  sessionSetupPromise = null;
 }
 
 async function handleSignIn(email, password) {
@@ -159,22 +219,19 @@ async function handleSignIn(email, password) {
     setAuthStatus('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.', true);
     return;
   }
+
   setAuthStatus('Signing in…');
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  setSyncEnabled(false);
+  clearPendingSync();
+  cancelPendingSignOut();
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     setAuthStatus(error.message, true);
     return;
   }
-  setSyncedUserId(data.user?.id);
-  if (data.user?.id) {
-    await hydrateFromSupabase(data.user.id);
-    await migrateLocalIfCloudEmpty(data.user.id);
-  }
-  updateAccountUI(data.user);
-  setAppLocked(false);
-  hideAuthModal();
+
   setAuthStatus('');
-  window.dispatchEvent(new CustomEvent('auth-changed'));
 }
 
 async function handleSignUp(email, password) {
@@ -182,29 +239,31 @@ async function handleSignUp(email, password) {
     setAuthStatus('Supabase is not configured.', true);
     return;
   }
+
   setAuthStatus('Creating account…');
+  setSyncEnabled(false);
+  clearPendingSync();
+
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) {
     setAuthStatus(error.message, true);
     return;
   }
+
   if (data.session?.user) {
-    setSyncedUserId(data.session.user.id);
-    await hydrateFromSupabase(data.session.user.id);
-    await migrateLocalIfCloudEmpty(data.session.user.id);
-    updateAccountUI(data.session.user);
-    setAppLocked(false);
-    hideAuthModal();
     setAuthStatus('');
-    window.dispatchEvent(new CustomEvent('auth-changed'));
     return;
   }
+
   setAuthStatus('Check your email to confirm your account, then sign in.');
   setAuthMode('signin');
 }
 
 async function handleSignOut() {
   if (!supabase) return;
+  cancelPendingSignOut();
+  setSyncEnabled(false);
+  clearPendingSync();
   await supabase.auth.signOut();
   setSyncedUserId(null);
   updateAccountUI(null);
@@ -230,9 +289,18 @@ function wireAuthFormListeners() {
   const form = document.getElementById('authForm');
   const emailInput = document.getElementById('authEmail');
   const passwordInput = document.getElementById('authPassword');
+  const passwordToggle = document.getElementById('authPasswordToggle');
   const signOutBtn = document.getElementById('authSignOutBtn');
   const authClose = document.getElementById('authModalClose');
   const settingsSignInBtn = document.getElementById('settingsSignInBtn');
+
+  passwordToggle?.addEventListener('click', () => {
+    if (!passwordInput) return;
+    const show = passwordInput.type === 'password';
+    passwordInput.type = show ? 'text' : 'password';
+    passwordToggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    passwordToggle.textContent = show ? '🙈' : '👁';
+  });
 
   authClose?.addEventListener('click', () => {
     if (!supabaseConfigured || currentUser) hideAuthModal();
@@ -275,43 +343,45 @@ export function initAuth() {
     return Promise.resolve(null);
   }
 
+  setSyncEnabled(false);
   console.info('[auth] Waiting for session from storage…');
 
   return new Promise((resolve) => {
     supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ?? null;
-      setSyncedUserId(user?.id ?? null);
+      console.info('[auth]', event, user?.email ?? 'signed out');
 
       if (event === 'INITIAL_SESSION') {
-        console.info('[auth] INITIAL_SESSION:', user ? user.email : 'signed out');
-        updateAccountUI(user);
         if (user) {
-          setAppLocked(false);
-          hideAuthModal();
+          finishAuthenticatedSession(session).then(() => resolve(session));
         } else {
+          setSyncedUserId(null);
+          setSyncEnabled(false);
+          updateAccountUI(null);
           setAppLocked(true);
           showAuthModal();
+          resolve(session);
         }
-        queueAuthSessionEvent(event, session);
-        resolve(session);
         return;
       }
 
-      console.info('[auth]', event, user?.email ?? 'signed out');
-      updateAccountUI(user);
-      if (user) {
+      if (event === 'SIGNED_IN') {
+        finishAuthenticatedSession(session, { migrate: true });
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED' && user) {
+        cancelPendingSignOut();
+        setSyncedUserId(user.id);
+        updateAccountUI(user);
         setAppLocked(false);
         hideAuthModal();
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          queueAuthSessionEvent(event, session);
-        }
-        if (event === 'SIGNED_IN') {
-          window.dispatchEvent(new CustomEvent('auth-changed'));
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setAppLocked(true);
-        showAuthModal();
-        window.dispatchEvent(new CustomEvent('auth-changed'));
+        if (!syncEnabled) setSyncEnabled(true);
+        return;
+      }
+
+      if (event === 'SIGNED_OUT') {
+        scheduleSignedOutUI();
       }
     });
   });
