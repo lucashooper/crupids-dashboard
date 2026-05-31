@@ -2546,7 +2546,7 @@
 
 <script type="module">
 import { storeGet, storeSet, storeDelete, storeListKeys } from './js/optimisticStore.js';
-import { initAuth, wireProfileUpload } from './js/auth.js';
+import { initAuth, wireProfileUpload, showAuthModal } from './js/auth.js';
 
 // ── Constants ──
 let WAKE_HOUR  = 8;
@@ -2556,6 +2556,8 @@ let AWAKE_HOURS = 16;
 let dayStarted = false;
 let dayStartTime = null;
 let dayEndTime = null;
+let reflectionViewDate = null;
+let reflectionDraftTimer = null;
 
 function priorityLevel(g) {
   const p = g && g.priority;
@@ -4411,8 +4413,6 @@ function buildHabitRow(habit) {
 
 // ── Reflection ──
 const REFLECTION_BULLET_FIELDS = ['wins', 'struggles', 'tomorrow'];
-let reflectionViewDate = null;
-let reflectionDraftTimer = null;
 
 function reflectionKey(date) {
   return 'reflection:' + date;
@@ -4910,9 +4910,21 @@ function refreshAllViews() {
 window.addEventListener('data-hydrated', refreshAllViews);
 window.addEventListener('auth-changed', refreshAllViews);
 
+window.addEventListener('error', (event) => {
+  console.error('[dashboard] Uncaught error:', event.error || event.message);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[dashboard] Unhandled promise rejection:', event.reason);
+});
+
 async function boot() {
-  await initAuth();
-  wireProfileUpload();
+  try {
+    await initAuth();
+    wireProfileUpload();
+  } catch (err) {
+    console.error('[dashboard] Auth init failed:', err);
+    showAuthModal();
+  }
 
   getStats();
   initScheduleTimePickers();
