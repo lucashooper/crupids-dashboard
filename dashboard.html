@@ -2180,6 +2180,17 @@
 
   /* ── Utilities ── */
   .hidden { display: none !important; }
+
+  body.auth-locked .dashboard-wrap {
+    pointer-events: none;
+    user-select: none;
+  }
+  body.auth-locked .profile-section {
+    pointer-events: auto;
+  }
+  .auth-modal--required .modal-close {
+    display: none !important;
+  }
 </style>
 </head>
 <body>
@@ -2516,7 +2527,7 @@
         <button type="button" class="auth-mode-tab is-active" data-mode="signin" role="tab">Sign in</button>
         <button type="button" class="auth-mode-tab" data-mode="signup" role="tab">Create account</button>
       </div>
-      <p class="auth-hint" id="authModeHint">Sign in to sync tasks, habits, and reflections across your devices. Changes save locally first, then sync in the background.</p>
+      <p class="auth-hint" id="authModeHint">Sign in to use your dashboard. Tasks, habits, and reflections sync automatically across devices.</p>
       <form class="auth-form" id="authForm">
         <input class="auth-input" type="email" id="authEmail" placeholder="Email" autocomplete="email" required />
         <input class="auth-input" type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
@@ -2524,7 +2535,6 @@
         <div class="auth-actions">
           <button type="submit" class="modal-save-btn" id="authPrimaryBtn" style="flex:1;margin:0">Sign in</button>
         </div>
-        <button type="button" class="auth-secondary-btn" id="authOfflineBtn" style="width:100%">Continue offline</button>
       </form>
     </div>
     <div id="authSignedIn" class="hidden">
@@ -2535,7 +2545,7 @@
 </div>
 
 <script type="module">
-import { storeGet, storeSet, storeDelete, storeListKeys, initDataSync } from './js/optimisticStore.js';
+import { storeGet, storeSet, storeDelete, storeListKeys } from './js/optimisticStore.js';
 import { initAuth, wireProfileUpload } from './js/auth.js';
 
 // ── Constants ──
@@ -4888,9 +4898,6 @@ makeAddHandlers(
 );
 
 // ── Init ──
-initAuth();
-wireProfileUpload();
-
 function refreshAllViews() {
   getStats();
   renderStreak();
@@ -4904,7 +4911,9 @@ window.addEventListener('data-hydrated', refreshAllViews);
 window.addEventListener('auth-changed', refreshAllViews);
 
 async function boot() {
-  await initDataSync();
+  await initAuth();
+  wireProfileUpload();
+
   getStats();
   initScheduleTimePickers();
   loadSettings();

@@ -303,28 +303,19 @@ export async function hydrateFromSupabase(userId) {
   window.dispatchEvent(new CustomEvent('data-hydrated'));
 }
 
-export async function initDataSync() {
+export async function handleAuthSessionEvent(event, session) {
   if (!supabaseConfigured || !supabase) return;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const uid = session?.user?.id ?? null;
+  cachedUserId = uid;
 
-  if (session?.user?.id) {
-    cachedUserId = session.user.id;
-    await hydrateFromSupabase(cachedUserId);
-  }
-
-  supabase.auth.onAuthStateChange(async (event, nextSession) => {
-    const uid = nextSession?.user?.id ?? null;
-    cachedUserId = uid;
-
-    if (uid && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
-      try {
-        await hydrateFromSupabase(uid);
-      } catch (err) {
-        console.warn('[sync] hydrate failed:', err);
-      }
+  if (
+    uid &&
+    (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')
+  ) {
+    await hydrateFromSupabase(uid);
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      window.dispatchEvent(new CustomEvent('data-hydrated'));
     }
-  });
+  }
 }
