@@ -7,6 +7,15 @@ import {
   storeSet,
 } from './optimisticStore.js';
 
+let currentUser = null;
+let authMode = 'signin';
+
+const OFFLINE_DISMISS_KEY = 'auth_offline_dismissed_v1';
+
+export function getCurrentUser() {
+  return currentUser;
+}
+
 export function applyProfileAvatar(user) {
   const img = document.getElementById('profilePic');
   const placeholder = document.getElementById('profilePlaceholder');
@@ -39,29 +48,89 @@ function setAuthStatus(text, isError = false) {
 
 function showAuthModal() {
   document.getElementById('authModal')?.classList.remove('hidden');
+  setAuthMode('signin');
 }
 
 function hideAuthModal() {
   document.getElementById('authModal')?.classList.add('hidden');
+  setAuthStatus('');
+}
+
+function openSettingsAccount() {
+  const settingsModal = document.getElementById('settingsModal');
+  settingsModal?.classList.remove('hidden');
+  document.getElementById('settingsAccountSection')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function handleAccountClick() {
+  if (currentUser) {
+    openSettingsAccount();
+    return;
+  }
+  showAuthModal();
+}
+
+function setAuthMode(mode) {
+  authMode = mode === 'signup' ? 'signup' : 'signin';
+  const title = document.getElementById('authModalTitle');
+  const primary = document.getElementById('authPrimaryBtn');
+  const hint = document.getElementById('authModeHint');
+  const tabs = document.querySelectorAll('.auth-mode-tab');
+
+  tabs.forEach((tab) => {
+    tab.classList.toggle('is-active', tab.dataset.mode === authMode);
+  });
+
+  if (title) title.textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+  if (primary) primary.textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+  if (hint) {
+    hint.textContent =
+      authMode === 'signup'
+        ? 'Create an account to sync tasks, habits, and reflections across devices.'
+        : 'Sign in to sync tasks, habits, and reflections across your devices. Changes save locally first, then sync in the background.';
+  }
+
+  const passwordInput = document.getElementById('authPassword');
+  if (passwordInput) {
+    passwordInput.autocomplete = authMode === 'signup' ? 'new-password' : 'current-password';
+  }
+  setAuthStatus('');
 }
 
 function updateAccountUI(user) {
-  const signedIn = document.getElementById('authSignedIn');
-  const signedOut = document.getElementById('authSignedOut');
+  currentUser = user || null;
+  const signedInPanel = document.getElementById('authSignedIn');
+  const signedOutPanel = document.getElementById('authSignedOut');
   const emailEl = document.getElementById('authUserEmail');
   const settingsAccount = document.getElementById('settingsAccountSection');
+  const openAuthBtn = document.getElementById('openAuthBtn');
 
   if (user) {
-    signedIn?.classList.remove('hidden');
-    signedOut?.classList.add('hidden');
+    signedInPanel?.classList.remove('hidden');
+    signedOutPanel?.classList.add('hidden');
     settingsAccount?.classList.remove('hidden');
     if (emailEl) emailEl.textContent = user.email || 'Signed in';
     applyProfileAvatar(user);
+
+    if (openAuthBtn) {
+      const short = user.email ? user.email.split('@')[0] : 'Synced';
+      openAuthBtn.textContent = short.length > 12 ? `${short.slice(0, 11)}…` : short;
+      openAuthBtn.title = `Signed in as ${user.email || 'your account'} — click for account`;
+      openAuthBtn.classList.add('account-btn--synced');
+      openAuthBtn.setAttribute('aria-label', `Account: ${user.email || 'signed in'}`);
+    }
   } else {
-    signedIn?.classList.add('hidden');
-    signedOut?.classList.remove('hidden');
+    signedInPanel?.classList.add('hidden');
+    signedOutPanel?.classList.remove('hidden');
     settingsAccount?.classList.add('hidden');
     applyProfileAvatar(null);
+
+    if (openAuthBtn) {
+      openAuthBtn.textContent = 'Account';
+      openAuthBtn.title = 'Sign in to sync across devices';
+      openAuthBtn.classList.remove('account-btn--synced');
+      openAuthBtn.setAttribute('aria-label', 'Sign in to sync across devices');
+    }
   }
 }
 
@@ -109,6 +178,7 @@ async function handleSignUp(email, password) {
     return;
   }
   setAuthStatus('Check your email to confirm your account, then sign in.');
+  setAuthMode('signin');
 }
 
 async function handleSignOut() {
@@ -116,7 +186,20 @@ async function handleSignOut() {
   await supabase.auth.signOut();
   setSyncedUserId(null);
   updateAccountUI(null);
+  hideAuthModal();
   window.dispatchEvent(new CustomEvent('auth-changed'));
+}
+
+function handleAuthSubmit(email, password) {
+  if (authMode === 'signup') {
+    if (password.length < 6) {
+      setAuthStatus('Password must be at least 6 characters.', true);
+      return;
+    }
+    handleSignUp(email, password);
+  } else {
+    handleSignIn(email, password);
+  }
 }
 
 export function initAuth() {
@@ -124,24 +207,30 @@ export function initAuth() {
   const form = document.getElementById('authForm');
   const emailInput = document.getElementById('authEmail');
   const passwordInput = document.getElementById('authPassword');
-  const signUpBtn = document.getElementById('authSignUpBtn');
   const signOutBtn = document.getElementById('authSignOutBtn');
   const offlineBtn = document.getElementById('authOfflineBtn');
   const openAuthBtn = document.getElementById('openAuthBtn');
   const profileWrap = document.getElementById('profilePicWrap');
   const authClose = document.getElementById('authModalClose');
 
-  openAuthBtn?.addEventListener('click', showAuthModal);
+  openAuthBtn?.addEventListener('click', handleAccountClick);
   profileWrap?.addEventListener('dblclick', (e) => {
     if (!supabaseConfigured) return;
     e.preventDefault();
-    showAuthModal();
+    handleAccountClick();
   });
 
   authClose?.addEventListener('click', hideAuthModal);
-  offlineBtn?.addEventListener('click', hideAuthModal);
+  offlineBtn?.addEventListener('click', () => {
+    storeSet(OFFLINE_DISMISS_KEY, true);
+    hideAuthModal();
+  });
   modal?.addEventListener('click', (e) => {
     if (e.target === modal) hideAuthModal();
+  });
+
+  document.querySelectorAll('.auth-mode-tab').forEach((tab) => {
+    tab.addEventListener('click', () => setAuthMode(tab.dataset.mode));
   });
 
   form?.addEventListener('submit', (e) => {
@@ -152,21 +241,7 @@ export function initAuth() {
       setAuthStatus('Enter email and password.', true);
       return;
     }
-    handleSignIn(email, password);
-  });
-
-  signUpBtn?.addEventListener('click', () => {
-    const email = emailInput?.value?.trim();
-    const password = passwordInput?.value;
-    if (!email || !password) {
-      setAuthStatus('Enter email and password.', true);
-      return;
-    }
-    if (password.length < 6) {
-      setAuthStatus('Password must be at least 6 characters.', true);
-      return;
-    }
-    handleSignUp(email, password);
+    handleAuthSubmit(email, password);
   });
 
   signOutBtn?.addEventListener('click', handleSignOut);
@@ -174,18 +249,21 @@ export function initAuth() {
 
   if (!supabaseConfigured) {
     document.getElementById('syncHint')?.classList.add('hidden');
+    if (openAuthBtn) openAuthBtn.style.display = 'none';
     return;
   }
 
   supabase.auth.getSession().then(({ data: { session } }) => {
     setSyncedUserId(session?.user?.id ?? null);
     updateAccountUI(session?.user ?? null);
-    if (!session?.user) showAuthModal();
+    const dismissed = storeGet(OFFLINE_DISMISS_KEY);
+    if (!session?.user && !dismissed) showAuthModal();
   });
 
   supabase.auth.onAuthStateChange((_event, session) => {
     setSyncedUserId(session?.user?.id ?? null);
     updateAccountUI(session?.user ?? null);
+    if (session?.user) hideAuthModal();
   });
 }
 
@@ -195,7 +273,7 @@ export function wireProfileUpload() {
   const placeholder = document.getElementById('profilePlaceholder');
   const upload = document.getElementById('profileUpload');
 
-  applyProfileAvatar(null);
+  applyProfileAvatar(currentUser);
 
   wrap?.addEventListener('click', () => upload?.click());
 

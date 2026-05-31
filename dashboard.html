@@ -4,19 +4,26 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>My Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <style>
   /* ── Reset & Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --text-primary:   #FAFAFA;
+    --text-primary:   #F4F3F0;
     --text-secondary: #B8B6B0;
-    --text-tertiary:  #76746E;
+    --text-tertiary:  #6E6C66;
     --success:        #6BE3A4;
     --warning:        #F2C063;
     --danger:         #FF6B6B;
-    --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --accent-warm:    #E87658;
+    --surface-card:   rgba(18, 18, 20, 0.72);
+    --border-subtle:  rgba(255, 255, 255, 0.09);
+    --border-glow:    rgba(255, 255, 255, 0.14);
+    --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
 
   html { scroll-behavior: smooth; }
@@ -78,13 +85,16 @@
 
   /* ── Card chassis ── */
   .card {
-    background: rgba(255,255,255,0.04);
-    border-radius: 16px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.025) 42%, rgba(0,0,0,0.35) 100%);
+    border-radius: 18px;
     padding: 20px 22px;
-    backdrop-filter: blur(24px) saturate(1.2);
-    -webkit-backdrop-filter: blur(24px) saturate(1.2);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
-    border: none;
+    backdrop-filter: blur(28px) saturate(1.25);
+    -webkit-backdrop-filter: blur(28px) saturate(1.25);
+    border: 1px solid var(--border-subtle);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.07),
+      0 16px 48px rgba(0,0,0,0.55),
+      0 2px 8px rgba(0,0,0,0.25);
   }
 
   /* ── Component 1: Page Title ── */
@@ -407,18 +417,28 @@
 
   /* ── GM Cards ── */
   .gm-card {
-    background: rgba(255,255,255,0.04);
-    border-radius: 16px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.025) 42%, rgba(0,0,0,0.35) 100%);
+    border-radius: 18px;
     padding: 20px 22px;
-    backdrop-filter: blur(24px) saturate(1.2);
-    -webkit-backdrop-filter: blur(24px) saturate(1.2);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
-    transition: background 0.4s ease;
+    backdrop-filter: blur(28px) saturate(1.25);
+    -webkit-backdrop-filter: blur(28px) saturate(1.25);
+    border: 1px solid var(--border-subtle);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.07),
+      0 16px 48px rgba(0,0,0,0.55),
+      0 2px 8px rgba(0,0,0,0.25);
+    transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
   }
 
   .gm-all-done {
-    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(107,227,164,0.08) 0%, transparent 70%),
-                rgba(255,255,255,0.04);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(107,227,164,0.12) 0%, transparent 70%),
+      linear-gradient(165deg, rgba(107,227,164,0.06) 0%, rgba(255,255,255,0.03) 50%, rgba(0,0,0,0.3) 100%);
+    border-color: rgba(107,227,164,0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(107,227,164,0.15),
+      0 16px 48px rgba(0,0,0,0.55),
+      0 0 32px rgba(107,227,164,0.08);
   }
   .gm-all-done .gm-progress-num,
   .gm-all-done .gm-progress-label {
@@ -1148,6 +1168,46 @@
     color: var(--text-primary);
     border-color: rgba(255,255,255,0.2);
   }
+  .account-btn--synced {
+    color: var(--success);
+    border-color: rgba(107,227,164,0.35);
+    background: rgba(107,227,164,0.08);
+  }
+  .account-btn--synced:hover {
+    color: #8ef0b8;
+    border-color: rgba(107,227,164,0.5);
+    background: rgba(107,227,164,0.12);
+  }
+  .auth-mode-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--border-subtle);
+  }
+  .auth-mode-tab {
+    flex: 1;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .auth-mode-tab.is-active {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .auth-mode-tab:hover:not(.is-active) {
+    color: var(--text-secondary);
+  }
   .auth-form { display: flex; flex-direction: column; gap: 12px; }
   .auth-input {
     width: 100%;
@@ -1569,7 +1629,106 @@
   .dash-panel { display: block; }
   .dash-panel.hidden { display: none !important; }
 
-  /* ── Daily habits ── */
+  /* ── Daily habits (in Today list) ── */
+  .goal-item--habit {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .goal-item--habit > .goal-drag-handle { opacity: 0.25; }
+  .habit-repeat-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-warm);
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: rgba(232,118,88,0.12);
+    border: 1px solid rgba(232,118,88,0.25);
+    flex-shrink: 0;
+  }
+  .habit-progress-pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    margin-right: 4px;
+  }
+  .habit-subtasks {
+    list-style: none;
+    width: 100%;
+    margin: 8px 0 0 52px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .habit-subtask {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .habit-subtask.is-done { color: var(--text-tertiary); text-decoration: line-through; }
+  .habit-subtask .goal-checkbox-custom { width: 18px; height: 18px; }
+  .habit-add-step-btn {
+    margin: 6px 0 0 52px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .habit-add-step-btn:hover { color: var(--text-secondary); }
+  .habit-steps-input {
+    width: 100%;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+  }
+  .habit-steps-input:focus {
+    outline: none;
+    border-color: rgba(232,118,88,0.4);
+    color: var(--text-primary);
+  }
+  .gm-chip.is-habit-mode {
+    color: var(--accent-warm);
+    border-color: rgba(232,118,88,0.45);
+    background: rgba(232,118,88,0.12);
+  }
+  .list-section-divider {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0 10px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .list-section-divider::before,
+  .list-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  }
+
   .habit-streak-pill {
     display: inline-flex;
     align-items: center;
@@ -1782,7 +1941,6 @@
 
   <nav class="dash-tabs" id="dashTabs" aria-label="Dashboard sections">
     <button type="button" class="dash-tab is-active" data-tab="today">Today</button>
-    <button type="button" class="dash-tab" data-tab="habits">Daily habits</button>
     <button type="button" class="dash-tab" data-tab="reflection">Reflection</button>
   </nav>
 
@@ -1808,14 +1966,16 @@
         </div>
       </div>
       <div class="gm-bar" id="gmBar"></div>
-      <div id="emptyState" class="empty-state">No goals for today yet — add one below.</div>
+      <div id="emptyState" class="empty-state">No tasks or daily habits yet — add one below (toggle 🔁 Daily habit for routines).</div>
       <ul id="goalList" class="goal-list"></ul>
       <button class="gm-push-btn hidden" id="gmPushBtn">Push remaining to tomorrow →</button>
       <div class="gm-compose" id="todayCompose">
         <div class="gm-compose-box">
           <input type="text" class="gm-compose-input" id="goalInput" placeholder="Add a new task…" autocomplete="off" />
+          <input type="text" class="habit-steps-input hidden" id="todayHabitStepsInput" placeholder="Routine steps (comma-separated): vitamins, 50 pushups, stretch…" autocomplete="off" />
           <div class="gm-compose-footer">
             <div class="gm-compose-chips" id="todayComposeChips">
+              <button type="button" class="gm-chip gm-chip-habit" id="todayHabitChip" title="Repeats daily with streak tracking">🔁 Daily habit</button>
               <button type="button" class="gm-chip gm-chip-flag" id="todayPriorityChip" title="Priority">🏳 P2</button>
               <button type="button" class="gm-chip gm-chip-cal" id="todayDueChip" title="Due date">Due date</button>
             </div>
@@ -1858,35 +2018,6 @@
 
   </div><!-- /section -->
   </div><!-- /panelToday -->
-
-  <div class="dash-panel hidden" id="panelHabits">
-    <div class="section">
-      <div class="section-title">Daily habits</div>
-      <div class="gm-card">
-        <div class="gm-header-row">
-          <div class="gm-header-left">
-            <div class="gm-eyebrow" id="habitsDateLabel">Today</div>
-            <div class="gm-tomorrow-sub">Repeating tasks with streak tracking — check in each day.</div>
-          </div>
-          <div class="gm-tomorrow-count" id="habitsDoneCount">0 / 0</div>
-        </div>
-        <div id="habitsEmptyState" class="empty-state">No daily habits yet — add one below (e.g. Morning routine: 30 pushups).</div>
-        <ul id="habitList" class="goal-list"></ul>
-        <div class="gm-compose">
-          <div class="gm-compose-box">
-            <input type="text" class="gm-compose-input" id="habitInput" placeholder="Add a daily habit…" autocomplete="off" />
-            <div class="gm-compose-footer">
-              <div class="gm-compose-chips"></div>
-              <div class="gm-compose-actions">
-                <button type="button" class="gm-compose-cancel" id="habitComposeCancel">Cancel</button>
-                <button type="button" class="gm-compose-submit" id="habitAddBtn">Add habit</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div class="dash-panel hidden" id="panelReflection">
     <div class="section">
@@ -2028,18 +2159,21 @@
 <div class="modal-overlay hidden" id="authModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Sign in</div>
+      <div class="modal-title" id="authModalTitle">Sign in</div>
       <button type="button" class="modal-close" id="authModalClose" aria-label="Close">×</button>
     </div>
-    <p class="auth-hint" id="syncHint">Sign in to sync tasks, habits, and reflections across your devices. Your dashboard stays instant — changes save locally first, then sync in the background.</p>
     <div id="authSignedOut">
+      <div class="auth-mode-tabs" role="tablist" aria-label="Authentication mode">
+        <button type="button" class="auth-mode-tab is-active" data-mode="signin" role="tab">Sign in</button>
+        <button type="button" class="auth-mode-tab" data-mode="signup" role="tab">Create account</button>
+      </div>
+      <p class="auth-hint" id="authModeHint">Sign in to sync tasks, habits, and reflections across your devices. Changes save locally first, then sync in the background.</p>
       <form class="auth-form" id="authForm">
         <input class="auth-input" type="email" id="authEmail" placeholder="Email" autocomplete="email" required />
         <input class="auth-input" type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
         <div class="auth-status" id="authStatus" role="status"></div>
         <div class="auth-actions">
-          <button type="submit" class="modal-save-btn" style="flex:1;margin:0">Sign in</button>
-          <button type="button" class="auth-secondary-btn" id="authSignUpBtn">Create account</button>
+          <button type="submit" class="modal-save-btn" id="authPrimaryBtn" style="flex:1;margin:0">Sign in</button>
         </div>
         <button type="button" class="auth-secondary-btn" id="authOfflineBtn" style="width:100%">Continue offline</button>
       </form>
@@ -2503,8 +2637,12 @@ function renderStreak() {
 function renderTodayHeader() {
   const key = 'goals:' + getActiveDateString();
   const goals = storeGet(key) || [];
-  const total  = goals.length;
-  const done   = goals.filter(g => g.done).length;
+  const habits = getHabits();
+  const goalDone = goals.filter(g => g.done).length;
+  const habitDone = habits.filter(h => habitDoneToday(h)).length;
+  const total = goals.length + habits.length;
+  const done = goalDone + habitDone;
+
   document.getElementById('todayLabel').textContent = `Today — ${formatDate(getActiveDateString())}`;
   document.getElementById('gmProgressNum').textContent   = done;
   document.getElementById('gmProgressTotal').textContent = `/ ${total}`;
@@ -2512,7 +2650,7 @@ function renderTodayHeader() {
   if (total === 0) lbl.textContent = 'no goals yet';
   else if (done === total) lbl.textContent = 'all done — solid day';
   else lbl.textContent = 'complete';
-  // Bar
+
   const bar = document.getElementById('gmBar');
   bar.innerHTML = '';
   goals.forEach(g => {
@@ -2520,14 +2658,19 @@ function renderTodayHeader() {
     seg.className = 'gm-bar-seg' + (g.done ? ' gm-bar-seg-done' : '');
     bar.appendChild(seg);
   });
-  // All done state
+  habits.forEach(h => {
+    const seg = document.createElement('div');
+    seg.className = 'gm-bar-seg' + (habitDoneToday(h) ? ' gm-bar-seg-done' : '');
+    bar.appendChild(seg);
+  });
+
   const card = document.getElementById('todayCard');
   if (total > 0 && done === total) card.classList.add('gm-all-done');
   else card.classList.remove('gm-all-done');
-  // Push button
+
   const pushBtn = document.getElementById('gmPushBtn');
   const hasPending = goals.some(g => !g.done);
-  if (hasPending && total > 0) pushBtn.classList.remove('hidden');
+  if (hasPending && goals.length > 0) pushBtn.classList.remove('hidden');
   else pushBtn.classList.add('hidden');
 }
 
@@ -2788,13 +2931,12 @@ function reload(key) {
 }
 
 // ── Inline edit ──
-function makeInlineEdit(el, idx, key, reloadFn) {
+function makeInlineEdit(el, idx, key, reloadFn, habitOpts) {
   el.addEventListener('click', () => {
     if (el.getAttribute('contenteditable') === 'true') return;
     const original = el.textContent;
     el.contentEditable = 'true';
     el.focus();
-    // place caret at end
     const range = document.createRange();
     const sel = window.getSelection();
     range.selectNodeContents(el);
@@ -2806,10 +2948,20 @@ function makeInlineEdit(el, idx, key, reloadFn) {
       const newText = el.textContent.trim();
       el.contentEditable = 'false';
       if (newText && newText !== original) {
-        const data = storeGet(key) || [];
-        data[idx].text = newText;
-        storeSet(key, data);
-        reloadFn(key);
+        if (habitOpts?.isHabit) {
+          const habits = getHabits();
+          const h = habits.find(x => x.id === habitOpts.habitId);
+          if (h) {
+            h.text = newText;
+            saveHabits(habits);
+            reloadFn();
+          }
+        } else {
+          const data = storeGet(key) || [];
+          data[idx].text = newText;
+          storeSet(key, data);
+          reloadFn(key);
+        }
       } else {
         el.textContent = original;
       }
@@ -3001,9 +3153,59 @@ function renderListInto(goals, listEl, emptyEl, key, listKind) {
 function loadToday() {
   const key = 'goals:' + getActiveDateString();
   const goals = storeGet(key) || [];
+  const habits = getHabits();
   const listEl  = document.getElementById('goalList');
   const emptyEl = document.getElementById('emptyState');
-  renderListInto(goals, listEl, emptyEl, key, 'today');
+
+  listEl.innerHTML = '';
+  listEl._expanded = listEl._expanded || false;
+
+  if (goals.length === 0 && habits.length === 0) {
+    emptyEl.style.display = '';
+    renderTodayHeader();
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  const LIMIT = 5;
+  const expanded = listEl._expanded;
+  const visibleGoals = expanded ? goals : goals.slice(0, LIMIT);
+  const hiddenGoals = goals.length - visibleGoals.length;
+
+  visibleGoals.forEach((g, i) => {
+    listEl.appendChild(buildGoalRow(g, i, goals, key, 'today'));
+  });
+
+  if (!expanded && hiddenGoals > 0) {
+    const toggle = document.createElement('button');
+    toggle.className = 'show-more-toggle';
+    toggle.textContent = `Show ${hiddenGoals} more tasks ▾`;
+    toggle.addEventListener('click', () => {
+      listEl._expanded = true;
+      loadToday();
+    });
+    listEl.appendChild(toggle);
+  } else if (expanded && goals.length > LIMIT) {
+    const toggle = document.createElement('button');
+    toggle.className = 'show-more-toggle';
+    toggle.textContent = 'Show fewer tasks ▴';
+    toggle.addEventListener('click', () => {
+      listEl._expanded = false;
+      loadToday();
+    });
+    listEl.appendChild(toggle);
+  }
+
+  if (habits.length > 0 && goals.length > 0) {
+    const div = document.createElement('li');
+    div.className = 'list-section-divider';
+    div.setAttribute('role', 'presentation');
+    div.textContent = 'Daily habits';
+    listEl.appendChild(div);
+  }
+
+  habits.forEach(h => listEl.appendChild(buildHabitRow(h)));
+  saveHabits(habits);
   renderTodayHeader();
 }
 
@@ -3018,7 +3220,7 @@ function loadTomorrow() {
 
 // ── Compose chips (priority + due on add) ──
 const composeDraft = {
-  today: { priority: undefined, duePreset: null },
+  today: { priority: undefined, duePreset: null, isHabit: false },
   tomorrow: { priority: undefined, duePreset: null },
 };
 
@@ -3030,10 +3232,43 @@ function dueChipLabel(preset) {
   return 'Due date';
 }
 
+function setTodayHabitComposeMode(on) {
+  const draft = composeDraft.today;
+  draft.isHabit = on;
+  const habitChip = document.getElementById('todayHabitChip');
+  const priChip = document.getElementById('todayPriorityChip');
+  const dueChip = document.getElementById('todayDueChip');
+  const stepsInput = document.getElementById('todayHabitStepsInput');
+  const addBtn = document.getElementById('goalAddBtn');
+  const goalInput = document.getElementById('goalInput');
+
+  habitChip?.classList.toggle('is-habit-mode', on);
+  habitChip?.classList.toggle('is-active', on);
+  priChip?.classList.toggle('hidden', on);
+  dueChip?.classList.toggle('hidden', on);
+  stepsInput?.classList.toggle('hidden', !on);
+
+  if (on) {
+    goalInput.placeholder = 'Habit name (e.g. Morning routine)…';
+    if (addBtn) addBtn.textContent = 'Add habit';
+  } else {
+    goalInput.placeholder = 'Add a new task…';
+    if (addBtn) addBtn.textContent = 'Add task';
+    if (stepsInput) stepsInput.value = '';
+  }
+}
+
 function initComposeChips(which) {
   const priChip = document.getElementById(which + 'PriorityChip');
   const dueChip = document.getElementById(which + 'DueChip');
   const draft = composeDraft[which];
+
+  if (which === 'today') {
+    const habitChip = document.getElementById('todayHabitChip');
+    habitChip?.addEventListener('click', () => {
+      setTodayHabitComposeMode(!draft.isHabit);
+    });
+  }
 
   priChip.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -3080,10 +3315,13 @@ function makeAddHandlers(inputId, addBtnId, keyFn, reloadFn, composeWhich) {
   function resetDraftUi() {
     draft.priority = undefined;
     draft.duePreset = null;
+    if (composeWhich === 'today' && draft.isHabit) setTodayHabitComposeMode(false);
     document.getElementById(composeWhich + 'PriorityChip').textContent = '🏳 P2';
     document.getElementById(composeWhich + 'DueChip').textContent = 'Due date';
     document.getElementById(composeWhich + 'PriorityChip').classList.remove('is-active');
     document.getElementById(composeWhich + 'DueChip').classList.remove('is-active');
+    const steps = document.getElementById('todayHabitStepsInput');
+    if (steps) steps.value = '';
   }
 
   const cancelBtn = document.getElementById(composeWhich + 'ComposeCancel');
@@ -3095,9 +3333,37 @@ function makeAddHandlers(inputId, addBtnId, keyFn, reloadFn, composeWhich) {
     });
   }
 
+  function parseHabitSteps(raw) {
+    return raw
+      .split(/[,;\n]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map((text, i) => ({ id: 'st_' + Date.now() + '_' + i, text }));
+  }
+
   function doAdd() {
     const text = input.value.trim();
     if (!text) return;
+
+    if (composeWhich === 'today' && draft.isHabit) {
+      const stepsRaw = document.getElementById('todayHabitStepsInput')?.value || '';
+      const habits = getHabits();
+      habits.push({
+        id: 'h_' + Date.now(),
+        text,
+        subtasks: parseHabitSteps(stepsRaw),
+        subtaskLog: {},
+        history: {},
+        streak: 0,
+        bestStreak: 0,
+      });
+      saveHabits(habits);
+      input.value = '';
+      resetDraftUi();
+      reloadFn();
+      return;
+    }
+
     const key = keyFn();
     const goals = storeGet(key) || [];
     goals.push(buildNewGoal(text, draft));
@@ -3250,10 +3516,10 @@ document.getElementById('gmPushBtn').addEventListener('click', () => {
   const tabs = document.querySelectorAll('.dash-tab');
   const panels = {
     today: document.getElementById('panelToday'),
-    habits: document.getElementById('panelHabits'),
     reflection: document.getElementById('panelReflection'),
   };
   let active = storeGet('dash_active_tab') || 'today';
+  if (active === 'habits') active = 'today';
 
   function showTab(name) {
     active = name;
@@ -3262,18 +3528,22 @@ document.getElementById('gmPushBtn').addEventListener('click', () => {
     Object.keys(panels).forEach(k => {
       if (panels[k]) panels[k].classList.toggle('hidden', k !== name);
     });
-    if (name === 'habits') loadHabits();
     if (name === 'reflection') loadReflection();
+    if (name === 'today') loadToday();
   }
 
   tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
-  if (active && panels[active]) showTab(active);
-  else showTab('today');
+  showTab(panels[active] ? active : 'today');
 })();
 
-// ── Daily habits ──
+// ── Daily habits (shown in Today list) ──
 function getHabits() {
-  return storeGet('habits_v1') || [];
+  const habits = storeGet('habits_v1') || [];
+  habits.forEach(h => {
+    if (!h.subtasks) h.subtasks = [];
+    if (!h.subtaskLog) h.subtaskLog = {};
+  });
+  return habits;
 }
 function saveHabits(habits) {
   storeSet('habits_v1', habits);
@@ -3293,23 +3563,63 @@ function computeHabitStreak(history, throughDate) {
   }
   return streak;
 }
+function getSubtaskLogForToday(habit, today) {
+  if (!habit.subtaskLog) habit.subtaskLog = {};
+  if (!habit.subtaskLog[today]) habit.subtaskLog[today] = {};
+  return habit.subtaskLog[today];
+}
+function subtaskProgress(habit, today) {
+  const subs = habit.subtasks || [];
+  if (subs.length === 0) return null;
+  const log = getSubtaskLogForToday(habit, today);
+  const done = subs.filter(st => log[st.id]).length;
+  return { done, total: subs.length };
+}
+function syncHabitCompletionFromSubtasks(h, today) {
+  const prog = subtaskProgress(h, today);
+  if (!prog) return;
+  if (!h.history) h.history = {};
+  if (prog.done === prog.total && prog.total > 0) h.history[today] = true;
+  else delete h.history[today];
+}
 function habitDoneToday(habit) {
+  const today = getActiveDateString();
+  const subs = habit.subtasks || [];
+  if (subs.length > 0) {
+    const prog = subtaskProgress(habit, today);
+    return prog && prog.done === prog.total;
+  }
   const h = habit.history || {};
-  return !!h[getActiveDateString()];
+  return !!h[today];
+}
+function setHabitDoneForToday(h, checked, today) {
+  if (!h.history) h.history = {};
+  if (checked) {
+    h.history[today] = true;
+    if (h.subtasks?.length) {
+      const log = getSubtaskLogForToday(h, today);
+      h.subtasks.forEach(st => { log[st.id] = true; });
+    }
+  } else {
+    delete h.history[today];
+    if (h.subtaskLog?.[today]) delete h.subtaskLog[today];
+  }
+  h.streak = computeHabitStreak(h.history, today);
+  if (h.streak > (h.bestStreak || 0)) h.bestStreak = h.streak;
 }
 function buildHabitRow(habit) {
+  const today = getActiveDateString();
   const li = document.createElement('li');
-  li.className = 'goal-item' + (habitDoneToday(habit) ? ' goal-done' : '');
+  li.className = 'goal-item goal-item--habit' + (habitDoneToday(habit) ? ' goal-done' : '');
   li.dataset.id = habit.id;
 
-  const streak = computeHabitStreak(habit.history || {}, getActiveDateString());
+  const streak = computeHabitStreak(habit.history || {}, today);
   habit.streak = streak;
   if (streak > (habit.bestStreak || 0)) habit.bestStreak = streak;
 
   const handle = document.createElement('span');
   handle.className = 'goal-drag-handle';
   handle.textContent = '⋮⋮';
-  handle.style.opacity = '0.35';
   li.appendChild(handle);
 
   const cbWrap = document.createElement('label');
@@ -3323,16 +3633,27 @@ function buildHabitRow(habit) {
   cbWrap.appendChild(cbCustom);
   li.appendChild(cbWrap);
 
-  const dot = document.createElement('span');
-  dot.className = 'goal-priority';
-  dot.dataset.priority = streak > 0 ? 'medium' : 'unassigned';
-  dot.style.cursor = 'default';
-  li.appendChild(dot);
+  const repeatBadge = document.createElement('span');
+  repeatBadge.className = 'habit-repeat-badge';
+  repeatBadge.textContent = 'Daily';
+  li.appendChild(repeatBadge);
 
   const textEl = document.createElement('span');
   textEl.className = 'goal-text';
   textEl.textContent = habit.text;
+  makeInlineEdit(textEl, null, null, loadToday, {
+    isHabit: true,
+    habitId: habit.id,
+  });
   li.appendChild(textEl);
+
+  const prog = subtaskProgress(habit, today);
+  if (prog) {
+    const progPill = document.createElement('span');
+    progPill.className = 'habit-progress-pill';
+    progPill.textContent = `${prog.done}/${prog.total}`;
+    li.appendChild(progPill);
+  }
 
   const streakPill = document.createElement('span');
   streakPill.className = 'habit-streak-pill' + (streak > 0 ? '' : ' is-cold');
@@ -3348,75 +3669,87 @@ function buildHabitRow(habit) {
   const delBtn = document.createElement('button');
   delBtn.className = 'goal-delete';
   delBtn.textContent = '×';
-  delBtn.title = 'Remove habit';
+  delBtn.title = 'Remove daily habit';
   li.appendChild(delBtn);
+
+  if ((habit.subtasks || []).length > 0) {
+    const subUl = document.createElement('ul');
+    subUl.className = 'habit-subtasks';
+    habit.subtasks.forEach(st => {
+      const subLi = document.createElement('li');
+      subLi.className = 'habit-subtask';
+      const log = getSubtaskLogForToday(habit, today);
+      const stDone = !!log[st.id];
+      if (stDone) subLi.classList.add('is-done');
+
+      const stWrap = document.createElement('label');
+      stWrap.className = 'goal-checkbox-wrap';
+      const stCb = document.createElement('input');
+      stCb.type = 'checkbox';
+      stCb.checked = stDone;
+      const stCustom = document.createElement('span');
+      stCustom.className = 'goal-checkbox-custom';
+      stWrap.appendChild(stCb);
+      stWrap.appendChild(stCustom);
+      subLi.appendChild(stWrap);
+
+      const stText = document.createElement('span');
+      stText.textContent = st.text;
+      subLi.appendChild(stText);
+
+      stCb.addEventListener('change', () => {
+        const habits = getHabits();
+        const h = habits.find(x => x.id === habit.id);
+        if (!h) return;
+        const dayLog = getSubtaskLogForToday(h, today);
+        if (stCb.checked) dayLog[st.id] = true;
+        else delete dayLog[st.id];
+        syncHabitCompletionFromSubtasks(h, today);
+        h.streak = computeHabitStreak(h.history || {}, today);
+        if (h.streak > (h.bestStreak || 0)) h.bestStreak = h.streak;
+        saveHabits(habits);
+        loadToday();
+      });
+
+      subUl.appendChild(subLi);
+    });
+    li.appendChild(subUl);
+  }
+
+  const addStepBtn = document.createElement('button');
+  addStepBtn.type = 'button';
+  addStepBtn.className = 'habit-add-step-btn';
+  addStepBtn.textContent = '+ Add step';
+  addStepBtn.addEventListener('click', () => {
+    const step = prompt('Step name (e.g. Take vitamins)');
+    if (!step || !step.trim()) return;
+    const habits = getHabits();
+    const h = habits.find(x => x.id === habit.id);
+    if (!h) return;
+    if (!h.subtasks) h.subtasks = [];
+    h.subtasks.push({ id: 'st_' + Date.now(), text: step.trim() });
+    saveHabits(habits);
+    loadToday();
+  });
+  li.appendChild(addStepBtn);
 
   cb.addEventListener('change', () => {
     const habits = getHabits();
     const h = habits.find(x => x.id === habit.id);
     if (!h) return;
-    if (!h.history) h.history = {};
-    const today = getActiveDateString();
-    if (cb.checked) h.history[today] = true;
-    else delete h.history[today];
-    h.streak = computeHabitStreak(h.history, today);
-    if (h.streak > (h.bestStreak || 0)) h.bestStreak = h.streak;
+    setHabitDoneForToday(h, cb.checked, today);
     saveHabits(habits);
-    loadHabits();
+    loadToday();
   });
 
   delBtn.addEventListener('click', () => {
     if (!confirm('Remove this daily habit?')) return;
     saveHabits(getHabits().filter(x => x.id !== habit.id));
-    loadHabits();
+    loadToday();
   });
 
   return li;
 }
-function loadHabits() {
-  const habits = getHabits();
-  const list = document.getElementById('habitList');
-  const empty = document.getElementById('habitsEmptyState');
-  const countEl = document.getElementById('habitsDoneCount');
-  const today = getActiveDateString();
-  document.getElementById('habitsDateLabel').textContent = `Today — ${formatDate(today)}`;
-
-  list.innerHTML = '';
-  if (habits.length === 0) {
-    empty.style.display = '';
-    countEl.textContent = '0 / 0';
-    return;
-  }
-  empty.style.display = 'none';
-  const done = habits.filter(h => habitDoneToday(h)).length;
-  countEl.textContent = `${done} / ${habits.length}`;
-  habits.forEach(h => list.appendChild(buildHabitRow(h)));
-  saveHabits(habits);
-}
-(function() {
-  document.getElementById('habitAddBtn').addEventListener('click', () => {
-    const input = document.getElementById('habitInput');
-    const text = input.value.trim();
-    if (!text) return;
-    const habits = getHabits();
-    habits.push({
-      id: 'h_' + Date.now(),
-      text,
-      history: {},
-      streak: 0,
-      bestStreak: 0,
-    });
-    saveHabits(habits);
-    input.value = '';
-    loadHabits();
-  });
-  document.getElementById('habitInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('habitAddBtn').click();
-  });
-  document.getElementById('habitComposeCancel').addEventListener('click', () => {
-    document.getElementById('habitInput').value = '';
-  });
-})();
 
 // ── Reflection ──
 let reflectionViewDate = null;
@@ -3688,7 +4021,6 @@ function refreshAllViews() {
   renderStreak();
   loadToday();
   loadTomorrow();
-  if (typeof loadHabits === 'function') loadHabits();
   if (typeof loadReflection === 'function') loadReflection();
   if (typeof renderGoalTicker === 'function') renderGoalTicker();
 }
@@ -3711,7 +4043,6 @@ async function boot() {
   loadToday();
   loadTomorrow();
   reflectionViewDate = getActiveDateString();
-  if (typeof loadHabits === 'function') loadHabits();
   if (typeof loadReflection === 'function') loadReflection();
 }
 
