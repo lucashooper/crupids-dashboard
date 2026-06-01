@@ -94,6 +94,39 @@ create policy "reflections_delete_own"
   on public.reflections for delete
   using (auth.uid() = user_id);
 
+-- ── Learning log (one row per entry) ──
+create table if not exists public.learning_entries (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  id text not null,
+  entry_date date not null,
+  title text not null default '',
+  source_url text not null default '',
+  source_type text not null default 'other',
+  notes text not null default '',
+  tags jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+
+alter table public.learning_entries enable row level security;
+
+create policy "learning_entries_select_own"
+  on public.learning_entries for select
+  using (auth.uid() = user_id);
+
+create policy "learning_entries_insert_own"
+  on public.learning_entries for insert
+  with check (auth.uid() = user_id);
+
+create policy "learning_entries_update_own"
+  on public.learning_entries for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "learning_entries_delete_own"
+  on public.learning_entries for delete
+  using (auth.uid() = user_id);
+
 -- ── Optional: settings, streaks, stats, day state, profile pic (multi-device parity) ──
 create table if not exists public.user_preferences (
   user_id uuid primary key references auth.users (id) on delete cascade,
@@ -124,6 +157,7 @@ create policy "user_preferences_delete_own"
 create index if not exists tasks_user_updated_idx on public.tasks (user_id, updated_at desc);
 create index if not exists habits_user_updated_idx on public.habits (user_id, updated_at desc);
 create index if not exists reflections_user_updated_idx on public.reflections (user_id, updated_at desc);
+create index if not exists learning_entries_user_date_idx on public.learning_entries (user_id, entry_date desc);
 
 -- Migration for existing projects (safe to re-run)
 alter table public.habits add column if not exists subtasks jsonb not null default '[]'::jsonb;

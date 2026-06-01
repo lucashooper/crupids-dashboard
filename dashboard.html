@@ -1825,7 +1825,23 @@
     color: var(--text-secondary);
   }
   .habit-subtask.is-done { color: var(--text-tertiary); text-decoration: line-through; }
+  .habit-subtask.is-done .habit-subtask-text { text-decoration: line-through; }
   .habit-subtask .goal-checkbox-custom { width: 18px; height: 18px; }
+  .habit-subtask-text {
+    flex: 1;
+    min-width: 0;
+    cursor: text;
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin: -2px -2px;
+    transition: background 0.12s;
+  }
+  .habit-subtask-text:hover { background: rgba(255,255,255,0.06); }
+  .habit-subtask-text:focus {
+    outline: none;
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 0 0 1px rgba(107,227,164,0.35);
+  }
   .habit-add-step-btn {
     margin: 6px 0 0 34px;
     padding: 0;
@@ -2202,6 +2218,324 @@
     background: rgba(255,255,255,0.08);
   }
 
+  /* ── Learning log ── */
+  .learn-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(242,192,99,0.18);
+    background:
+      linear-gradient(145deg, rgba(242,192,99,0.06) 0%, rgba(255,255,255,0.02) 42%, rgba(10,10,11,0.4) 100%);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+  }
+  .learn-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 80% 50% at 100% 0%, rgba(242,192,99,0.12), transparent 55%);
+  }
+  .learn-composer { position: relative; z-index: 1; }
+  .learn-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(242,192,99,0.85);
+    margin-bottom: 6px;
+  }
+  .learn-date {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .learn-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin: 0 0 16px;
+    line-height: 1.5;
+  }
+  .learn-field { margin-bottom: 14px; }
+  .learn-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .learn-input,
+  .learn-textarea {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.28);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: var(--font-sans);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .learn-input:focus,
+  .learn-textarea:focus {
+    outline: none;
+    border-color: rgba(242,192,99,0.45);
+    box-shadow: 0 0 0 3px rgba(242,192,99,0.12);
+  }
+  .learn-textarea { resize: vertical; min-height: 96px; line-height: 1.55; }
+  .learn-video-preview { margin: 4px 0 14px; }
+  .learn-video-shell {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+  }
+  .learn-video-shell--compact { margin-top: 10px; }
+  .learn-video-iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .learn-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .learn-save-btn { margin: 0; padding: 10px 20px; font-size: 13px; }
+  .learn-cancel-btn {
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .learn-cancel-btn:hover {
+    background: rgba(255,255,255,0.06);
+    color: var(--text-primary);
+  }
+  .learn-status {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    flex: 1;
+    min-width: 140px;
+  }
+  .learn-status.is-saved { color: var(--success); }
+  .learn-today-title,
+  .learn-history-title {
+    font-family: var(--font-sans);
+    font-size: var(--type-eyebrow-size);
+    font-weight: var(--type-eyebrow-weight);
+    letter-spacing: var(--type-eyebrow-spacing);
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 20px 0 10px;
+  }
+  .learn-today-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .learn-entry-card {
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  }
+  .learn-entry-card:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(242,192,99,0.22);
+    transform: translateY(-1px);
+  }
+  .learn-entry-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .learn-entry-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.35;
+  }
+  .learn-entry-notes {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+  .learn-source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-tertiary);
+  }
+  .learn-source-badge--youtube {
+    background: rgba(255,59,48,0.14);
+    color: #ff8a84;
+  }
+  .learn-source-badge--article {
+    background: rgba(107,227,164,0.12);
+    color: var(--success);
+  }
+  .learn-source-link {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: rgba(242,192,99,0.9);
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .learn-source-link:hover { text-decoration: underline; }
+  .learn-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .learn-history-day-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+  .learn-history-item {
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .learn-history-item:hover { background: rgba(255,255,255,0.05); }
+  .learn-history-item.is-active { border-color: rgba(242,192,99,0.35); }
+  .learn-history-item.is-expanded { background: rgba(255,255,255,0.05); }
+  .learn-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .learn-history-head-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .learn-history-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .learn-history-snippet {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .learn-history-chevron {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .learn-history-item.is-expanded .learn-history-chevron { transform: rotate(180deg); }
+  .learn-history-body {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .learn-history-item.is-expanded .learn-history-body { display: block; }
+  .learn-history-notes {
+    margin-top: 10px;
+    white-space: pre-wrap;
+  }
+  .learn-tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .learn-tag-chip {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(242,192,99,0.12);
+    color: rgba(242,192,99,0.9);
+  }
+  .learn-history-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .learn-history-action {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .learn-history-action:hover {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.08);
+  }
+  .learn-history-action--danger:hover {
+    color: #ff8a84;
+    border-color: rgba(255,59,48,0.35);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .goal-ticker-led-dot { animation: none; }
     .goal-ticker-row.is-fading { transition: none; }
@@ -2302,6 +2636,7 @@
   <nav class="dash-tabs" id="dashTabs" aria-label="Dashboard sections">
     <button type="button" class="dash-tab is-active" data-tab="today">Today</button>
     <button type="button" class="dash-tab" data-tab="reflection">Reflection</button>
+    <button type="button" class="dash-tab" data-tab="learn">Learn</button>
   </nav>
 
   <div class="dash-panel" id="panelToday">
@@ -2417,6 +2752,49 @@
       </div>
       <div class="reflection-history-title">Past reflections</div>
       <div class="reflection-history-list" id="reflectionHistoryList"></div>
+    </div>
+  </div>
+
+  <div class="dash-panel hidden" id="panelLearn">
+    <div class="section">
+      <div class="section-title">Learning Log</div>
+      <div class="gm-card learn-card">
+        <div class="learn-composer">
+          <div class="learn-eyebrow">🧠 IQ Maxxing</div>
+          <div class="learn-date" id="learnDateLabel">Today</div>
+          <p class="learn-hint">Capture what you learned — paste a YouTube link to embed the video, or log articles and notes.</p>
+
+          <div class="learn-field">
+            <label class="learn-label" for="learnTitleInput">Title</label>
+            <input type="text" class="learn-input" id="learnTitleInput" placeholder="What did you learn?" autocomplete="off" />
+          </div>
+          <div class="learn-field">
+            <label class="learn-label" for="learnUrlInput">Source URL</label>
+            <input type="url" class="learn-input" id="learnUrlInput" placeholder="https://youtube.com/watch?v=… or article link" autocomplete="off" />
+          </div>
+          <div class="learn-video-preview hidden" id="learnVideoPreview"></div>
+          <div class="learn-field">
+            <label class="learn-label" for="learnNotesInput">Notes</label>
+            <textarea class="learn-textarea" id="learnNotesInput" rows="4" placeholder="Key takeaways, quotes, things to revisit…"></textarea>
+          </div>
+          <div class="learn-field">
+            <label class="learn-label" for="learnTagsInput">Tags (optional)</label>
+            <input type="text" class="learn-input" id="learnTagsInput" placeholder="finance, russian, markets" autocomplete="off" />
+          </div>
+
+          <div class="learn-actions">
+            <button type="button" class="modal-save-btn learn-save-btn" id="learnSaveBtn">Save entry</button>
+            <button type="button" class="learn-cancel-btn hidden" id="learnCancelEdit">Cancel edit</button>
+            <span class="learn-status" id="learnStatus">Log what you learned — links embed automatically</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="learn-today-title hidden" id="learnTodayTitle">Logged today</div>
+      <div class="learn-today-list" id="learnTodayList"></div>
+
+      <div class="learn-history-title">Library</div>
+      <div class="learn-history-list" id="learnHistoryList"></div>
     </div>
   </div>
 
@@ -2580,6 +2958,7 @@
 <script type="module">
 import { storeGet, storeSet, storeDelete, storeListKeys } from './js/optimisticStore.js';
 import { initAuth, wireProfileUpload, showAuthModal } from './js/auth.js';
+import { initLearn, loadLearn } from './js/learn.js';
 
 // ── Constants ──
 let WAKE_HOUR  = 8;
@@ -3573,7 +3952,18 @@ function makeInlineEdit(el, idx, key, reloadFn, habitOpts) {
       const newText = el.textContent.trim();
       el.contentEditable = 'false';
       if (newText && newText !== original) {
-        if (habitOpts?.isHabit) {
+        if (habitOpts?.stepId) {
+          const habits = getHabits();
+          const h = habits.find(x => x.id === habitOpts.habitId);
+          if (h) {
+            const st = (h.subtasks || []).find(x => x.id === habitOpts.stepId);
+            if (st) {
+              st.text = newText;
+              saveHabits(habits);
+              reloadFn();
+            }
+          }
+        } else if (habitOpts?.isHabit) {
           const habits = getHabits();
           const h = habits.find(x => x.id === habitOpts.habitId);
           if (h) {
@@ -4188,6 +4578,7 @@ document.getElementById('gmPushBtn').addEventListener('click', () => {
   const panels = {
     today: document.getElementById('panelToday'),
     reflection: document.getElementById('panelReflection'),
+    learn: document.getElementById('panelLearn'),
   };
   let active = storeGet('dash_active_tab') || 'today';
   if (active === 'habits') active = 'today';
@@ -4200,6 +4591,7 @@ document.getElementById('gmPushBtn').addEventListener('click', () => {
       if (panels[k]) panels[k].classList.toggle('hidden', k !== name);
     });
     if (name === 'reflection') loadReflection();
+    if (name === 'learn') loadLearn();
     if (name === 'today') loadToday();
   }
 
@@ -4403,7 +4795,13 @@ function buildHabitRow(habit) {
       subLi.appendChild(stWrap);
 
       const stText = document.createElement('span');
+      stText.className = 'habit-subtask-text';
       stText.textContent = st.text;
+      makeInlineEdit(stText, null, null, () => loadToday(), {
+        isHabit: true,
+        habitId: habit.id,
+        stepId: st.id,
+      });
       subLi.appendChild(stText);
 
       stCb.addEventListener('change', () => {
@@ -4951,6 +5349,7 @@ function refreshAllViews() {
   loadToday();
   loadTomorrow();
   if (typeof loadReflection === 'function') loadReflection();
+  if (typeof loadLearn === 'function') loadLearn();
   if (typeof renderGoalTicker === 'function') renderGoalTicker();
 }
 
@@ -4986,7 +5385,9 @@ async function boot() {
   loadToday();
   loadTomorrow();
   reflectionViewDate = getActiveDateString();
+  initLearn({ getActiveDateString, formatDate });
   if (typeof loadReflection === 'function') loadReflection();
+  if (typeof loadLearn === 'function') loadLearn();
 }
 
 boot();

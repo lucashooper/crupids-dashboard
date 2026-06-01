@@ -30,7 +30,12 @@ function removeLocal(key) {
 }
 
 function isSyncedDataKey(key) {
-  return key.startsWith('goals:') || key === 'habits_v1' || key.startsWith('reflection:');
+  return (
+    key.startsWith('goals:') ||
+    key === 'habits_v1' ||
+    key === 'learning_log_v1' ||
+    key.startsWith('reflection:')
+  );
 }
 
 function isPrefKey(key) {
@@ -221,6 +226,28 @@ async function pushKeyToSupabase(key, value) {
       { onConflict: 'user_id,reflection_date' }
     );
     if (error) throw error;
+    return;
+  }
+
+  if (key === 'learning_log_v1') {
+    const entries = Array.isArray(value) ? value : [];
+    const { error: delErr } = await supabase.from('learning_entries').delete().eq('user_id', cachedUserId);
+    if (delErr) throw delErr;
+    if (entries.length === 0) return;
+
+    const rows = entries.map((e) => ({
+      id: e.id,
+      user_id: cachedUserId,
+      entry_date: e.date,
+      title: e.title || '',
+      source_url: e.sourceUrl || '',
+      source_type: e.sourceType || 'other',
+      notes: e.notes || '',
+      tags: e.tags || [],
+      updated_at: new Date(e.updatedAt || Date.now()).toISOString(),
+    }));
+    const { error } = await supabase.from('learning_entries').upsert(rows, { onConflict: 'user_id,id' });
+    if (error) throw error;
   }
 }
 
@@ -257,6 +284,7 @@ export async function pushAllLocalToSupabase() {
     jobs.push(pushKeyToSupabase(key, readLocal(key)));
   });
   jobs.push(pushKeyToSupabase('habits_v1', readLocal('habits_v1') || []));
+  jobs.push(pushKeyToSupabase('learning_log_v1', readLocal('learning_log_v1') || []));
   storeListKeys('reflection:').forEach((key) => {
     jobs.push(pushKeyToSupabase(key, readLocal(key)));
   });
@@ -290,12 +318,16 @@ export async function hydrateFromSupabase(userId) {
 
   await restoreClientSession(getCachedSession());
 
-  const [tasksRes, habitsRes, reflRes, prefsRes] = await Promise.all([
+  const [tasksRes, habitsRes, reflRes, learnRes, prefsRes] = await Promise.all([
     supabase.from('tasks').select('task_date, goals, updated_at').eq('user_id', userId),
     supabase.from('habits').select('id, text, history, streak, best_streak, subtasks, subtask_log, emoji, updated_at').eq('user_id', userId),
     supabase
       .from('reflections')
       .select('reflection_date, wins, struggles, tomorrow, summary, updated_at')
+      .eq('user_id', userId),
+    supabase
+      .from('learning_entries')
+      .select('id, entry_date, title, source_url, source_type, notes, tags, updated_at')
       .eq('user_id', userId),
     supabase.from('user_preferences').select('data').eq('user_id', userId).maybeSingle(),
   ]);
@@ -303,6 +335,7 @@ export async function hydrateFromSupabase(userId) {
   if (tasksRes.error) throw tasksRes.error;
   if (habitsRes.error) throw habitsRes.error;
   if (reflRes.error) throw reflRes.error;
+  if (learnRes.error) throw learnRes.error;
   if (prefsRes.error) throw prefsRes.error;
 
   (tasksRes.data || []).forEach((row) => {
@@ -332,6 +365,23 @@ export async function hydrateFromSupabase(userId) {
       };
     });
     writeLocal('habits_v1', habits);
+  }
+
+  if (learnRes.data?.length) {
+    const entries = learnRes.data
+      .map((row) => ({
+        id: row.id,
+        date: row.entry_date,
+        title: row.title || '',
+        sourceUrl: row.source_url || '',
+        sourceType: row.source_type || 'other',
+        notes: row.notes || '',
+        tags: Array.isArray(row.tags) ? row.tags : [],
+        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
+        createdAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
+      }))
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    writeLocal('learning_log_v1', entries);
   }
 
   (reflRes.data || []).forEach((r) => {
