@@ -19,7 +19,12 @@ function readLocal(key) {
 }
 
 function writeLocal(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.error('[sync] localStorage write failed:', key, err?.message || err);
+    throw err;
+  }
   if (key.startsWith('goals:')) {
     window.dispatchEvent(new CustomEvent('goals-changed'));
   }
@@ -114,8 +119,15 @@ function scheduleSync(key, value) {
   if (prev?.timer) clearTimeout(prev.timer);
   const timer = setTimeout(() => {
     pendingSync.delete(key);
-    pushKeyToSupabase(key, value).catch((err) => {
-      console.warn('[sync] push failed:', key, err?.message || err);
+    const latest = readLocal(key);
+    const payload = latest !== null && latest !== undefined ? latest : value;
+    pushKeyToSupabase(key, payload).catch((err) => {
+      console.warn('[sync] push failed:', key, err?.message || err, err);
+      window.dispatchEvent(
+        new CustomEvent('sync-failed', {
+          detail: { key, message: err?.message || String(err) },
+        })
+      );
     });
   }, SYNC_DEBOUNCE_MS);
   pendingSync.set(key, { timer, value });
@@ -166,7 +178,10 @@ function schedulePrefsSync() {
 }
 
 async function pushKeyToSupabase(key, value) {
-  if (!(await verifySessionForSync())) return;
+  if (!(await verifySessionForSync())) {
+    console.warn('[sync] push skipped (no valid session):', key);
+    return;
+  }
 
   if (key.startsWith('goals:')) {
     const taskDate = key.slice('goals:'.length);
@@ -230,24 +245,53 @@ async function pushKeyToSupabase(key, value) {
   }
 
   if (key === 'learning_log_v1') {
-    const entries = Array.isArray(value) ? value : [];
-    const { error: delErr } = await supabase.from('learning_entries').delete().eq('user_id', cachedUserId);
-    if (delErr) throw delErr;
-    if (entries.length === 0) return;
+    const entries = Array.isArray(readLocal('learning_log_v1'))
+      ? readLocal('learning_log_v1')
+      : Array.isArray(value)
+        ? value
+        : [];
+    console.info('[sync] pushing learning entries:', entries.length);
 
-    const rows = entries.map((e) => ({
-      id: e.id,
-      user_id: cachedUserId,
-      entry_date: e.date,
-      title: e.title || '',
-      source_url: e.sourceUrl || '',
-      source_type: e.sourceType || 'other',
-      notes: e.notes || '',
-      tags: e.tags || [],
-      updated_at: new Date(e.updatedAt || Date.now()).toISOString(),
-    }));
-    const { error } = await supabase.from('learning_entries').upsert(rows, { onConflict: 'user_id,id' });
-    if (error) throw error;
+    if (entries.length > 0) {
+      const rows = entries.map((e) => ({
+        id: e.id,
+        user_id: cachedUserId,
+        entry_date: e.date,
+        title: e.title || '',
+        source_url: e.sourceUrl || '',
+        source_type: e.sourceType || 'other',
+        notes: e.notes || '',
+        tags: Array.isArray(e.tags) ? e.tags : [],
+        updated_at: new Date(e.updatedAt || Date.now()).toISOString(),
+      }));
+      const { error } = await supabase.from('learning_entries').upsert(rows, { onConflict: 'user_id,id' });
+      if (error) throw error;
+    }
+
+    const { data: cloudRows, error: fetchErr } = await supabase
+      .from('learning_entries')
+      .select('id')
+      .eq('user_id', cachedUserId);
+    if (fetchErr) throw fetchErr;
+
+    const localIds = new Set(entries.map((e) => e.id));
+    const orphanIds = (cloudRows || []).map((r) => r.id).filter((id) => !localIds.has(id));
+
+    if (orphanIds.length > 0) {
+      const { error: delErr } = await supabase
+        .from('learning_entries')
+        .delete()
+        .eq('user_id', cachedUserId)
+        .in('id', orphanIds);
+      if (delErr) throw delErr;
+    } else if (entries.length === 0 && (cloudRows || []).length > 0) {
+      const { error: delErr } = await supabase.from('learning_entries').delete().eq('user_id', cachedUserId);
+      if (delErr) throw delErr;
+    }
+
+    console.info('[sync] learning entries pushed OK');
+    window.dispatchEvent(new CustomEvent('sync-ok', { detail: { key: 'learning_log_v1' } }));
+    return;
   }
 }
 
@@ -313,6 +357,38 @@ export async function migrateLocalIfCloudEmpty(userId) {
   await pushAllLocalToSupabase();
 }
 
+function mergeLearningEntries(localEntries, cloudRows) {
+  const toEntry = (row) => ({
+    id: row.id,
+    date: row.entry_date ?? row.date,
+    title: row.title || '',
+    sourceUrl: row.source_url ?? row.sourceUrl ?? '',
+    sourceType: row.source_type ?? row.sourceType ?? 'other',
+    notes: row.notes || '',
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    updatedAt: row.updated_at
+      ? new Date(row.updated_at).getTime()
+      : row.updatedAt || Date.now(),
+    createdAt: row.created_at
+      ? new Date(row.created_at).getTime()
+      : row.createdAt || row.updatedAt || Date.now(),
+  });
+
+  const byId = new Map();
+  (Array.isArray(localEntries) ? localEntries : []).forEach((entry) => {
+    if (entry?.id) byId.set(entry.id, entry);
+  });
+  (Array.isArray(cloudRows) ? cloudRows : []).forEach((row) => {
+    const cloudEntry = toEntry(row);
+    const local = byId.get(cloudEntry.id);
+    if (!local || (cloudEntry.updatedAt || 0) >= (local.updatedAt || 0)) {
+      byId.set(cloudEntry.id, cloudEntry);
+    }
+  });
+
+  return [...byId.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
 export async function hydrateFromSupabase(userId) {
   if (!userId || !supabaseConfigured || !supabase) return;
 
@@ -335,8 +411,11 @@ export async function hydrateFromSupabase(userId) {
   if (tasksRes.error) throw tasksRes.error;
   if (habitsRes.error) throw habitsRes.error;
   if (reflRes.error) throw reflRes.error;
-  if (learnRes.error) throw learnRes.error;
   if (prefsRes.error) throw prefsRes.error;
+
+  if (learnRes.error) {
+    console.warn('[sync] learning_entries fetch failed (keeping local data):', learnRes.error.message || learnRes.error);
+  }
 
   (tasksRes.data || []).forEach((row) => {
     writeLocal(`goals:${row.task_date}`, row.goals || []);
@@ -367,21 +446,13 @@ export async function hydrateFromSupabase(userId) {
     writeLocal('habits_v1', habits);
   }
 
-  if (learnRes.data?.length) {
-    const entries = learnRes.data
-      .map((row) => ({
-        id: row.id,
-        date: row.entry_date,
-        title: row.title || '',
-        sourceUrl: row.source_url || '',
-        sourceType: row.source_type || 'other',
-        notes: row.notes || '',
-        tags: Array.isArray(row.tags) ? row.tags : [],
-        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
-        createdAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
-      }))
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    writeLocal('learning_log_v1', entries);
+  const localLearning = readLocal('learning_log_v1') || [];
+  if (!learnRes.error) {
+    const mergedLearning = mergeLearningEntries(localLearning, learnRes.data || []);
+    writeLocal('learning_log_v1', mergedLearning);
+    console.info('[sync] learning entries hydrated:', mergedLearning.length);
+  } else if (localLearning.length > 0) {
+    console.info('[sync] keeping local learning entries:', localLearning.length);
   }
 
   (reflRes.data || []).forEach((r) => {

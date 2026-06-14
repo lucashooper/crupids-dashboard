@@ -2338,6 +2338,8 @@
     min-width: 140px;
   }
   .learn-status.is-saved { color: var(--success); }
+  .learn-status.is-error { color: var(--danger); }
+  .learn-save-btn:disabled { opacity: 0.65; cursor: wait; }
   .learn-today-title,
   .learn-history-title {
     font-family: var(--font-sans);
@@ -3352,6 +3354,8 @@ function formatDate(ds) {
   const months= ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
 }
+
+initLearn({ getActiveDateString, formatDate });
 
 // ── Rollover ──
 function runRollover() {
@@ -5385,7 +5389,6 @@ async function boot() {
   loadToday();
   loadTomorrow();
   reflectionViewDate = getActiveDateString();
-  initLearn({ getActiveDateString, formatDate });
   if (typeof loadReflection === 'function') loadReflection();
   if (typeof loadLearn === 'function') loadLearn();
 }

@@ -257,7 +257,7 @@ async function finishAuthenticatedSession(session, { migrate = false } = {}) {
 
 async function handleSignIn(email, password) {
   if (!supabase) {
-    setAuthStatus('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.', true);
+    setAuthStatus('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.', true);
     return;
   }
 

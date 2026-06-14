@@ -1,10 +1,12 @@
 import { storeGet, storeSet } from './optimisticStore.js';
 
 const LEARN_KEY = 'learning_log_v1';
+const LOG = '[learn]';
 
 let deps = {};
 let learnEditingId = null;
 let urlPreviewTimer = null;
+let wired = false;
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -36,12 +38,51 @@ export function detectSourceType(url) {
 }
 
 function getEntries() {
-  const raw = storeGet(LEARN_KEY);
-  return Array.isArray(raw) ? raw : [];
+  try {
+    const raw = storeGet(LEARN_KEY);
+    if (raw == null) return [];
+    if (!Array.isArray(raw)) {
+      console.warn(LOG, 'local data was not an array, resetting', raw);
+      return [];
+    }
+    return raw;
+  } catch (err) {
+    console.error(LOG, 'getEntries failed:', err);
+    return [];
+  }
+}
+
+function setStatus(text, { isError = false, isSaved = false } = {}) {
+  const status = document.getElementById('learnStatus');
+  if (!status) return;
+  status.textContent = text;
+  status.classList.toggle('is-saved', isSaved && !isError);
+  status.classList.toggle('is-error', isError);
+}
+
+function setSaveBusy(busy) {
+  const btn = document.getElementById('learnSaveBtn');
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+  if (busy) btn.dataset.prevLabel = btn.textContent;
+  btn.textContent = busy ? 'Saving…' : btn.dataset.prevLabel || 'Save entry';
 }
 
 function saveEntries(entries) {
+  if (!Array.isArray(entries)) {
+    throw new Error('saveEntries expected an array');
+  }
+  console.info(LOG, 'writing localStorage', { key: LEARN_KEY, count: entries.length });
   storeSet(LEARN_KEY, entries);
+  const verify = storeGet(LEARN_KEY);
+  if (!Array.isArray(verify)) {
+    throw new Error('localStorage read-back was not an array');
+  }
+  if (verify.length !== entries.length) {
+    throw new Error(`localStorage verify mismatch: wrote ${entries.length}, read ${verify.length}`);
+  }
+  console.info(LOG, 'local save verified OK');
 }
 
 function sourceLabel(type) {
@@ -83,8 +124,7 @@ function clearComposer() {
   if (notes) notes.value = '';
   if (tags) tags.value = '';
   updateUrlPreview('');
-  const cancel = document.getElementById('learnCancelEdit');
-  if (cancel) cancel.classList.add('hidden');
+  document.getElementById('learnCancelEdit')?.classList.add('hidden');
   const save = document.getElementById('learnSaveBtn');
   if (save) save.textContent = 'Save entry';
 }
@@ -142,51 +182,82 @@ function buildVideoEmbed(videoId, title) {
 }
 
 function commitLearnSave() {
-  const form = collectComposerForm();
-  const status = document.getElementById('learnStatus');
-  if (!hasEntryContent(form)) {
-    if (status) status.textContent = 'Add a title, link, or notes before saving';
-    return;
-  }
+  console.info(LOG, 'save clicked');
+  setSaveBusy(true);
 
-  const now = Date.now();
-  const today = deps.getActiveDateString();
-  const entries = getEntries();
-  const sourceType = detectSourceType(form.sourceUrl);
+  try {
+    if (typeof deps.getActiveDateString !== 'function') {
+      throw new Error('Learn UI not initialized (missing date helpers)');
+    }
 
-  if (learnEditingId) {
-    const idx = entries.findIndex(e => e.id === learnEditingId);
-    if (idx >= 0) {
-      entries[idx] = {
-        ...entries[idx],
+    const form = collectComposerForm();
+    console.info(LOG, 'form collected', {
+      titleLen: form.title.length,
+      urlLen: form.sourceUrl.length,
+      notesLen: form.notes.length,
+      tags: form.tags.length,
+    });
+
+    if (!hasEntryContent(form)) {
+      setStatus('Add a title, link, or notes before saving', { isError: true });
+      return;
+    }
+
+    const now = Date.now();
+    const today = deps.getActiveDateString();
+    const entries = getEntries().slice();
+    const sourceType = detectSourceType(form.sourceUrl);
+    let savedEntry;
+
+    if (learnEditingId) {
+      const idx = entries.findIndex(e => e.id === learnEditingId);
+      if (idx >= 0) {
+        savedEntry = {
+          ...entries[idx],
+          ...form,
+          sourceType,
+          updatedAt: now,
+        };
+        entries[idx] = savedEntry;
+      } else {
+        console.warn(LOG, 'edit id not found, creating new entry instead', learnEditingId);
+        savedEntry = {
+          id: 'le_' + now,
+          date: today,
+          ...form,
+          sourceType,
+          createdAt: now,
+          updatedAt: now,
+        };
+        entries.unshift(savedEntry);
+      }
+    } else {
+      savedEntry = {
+        id: 'le_' + now,
+        date: today,
         ...form,
         sourceType,
+        createdAt: now,
         updatedAt: now,
       };
+      entries.unshift(savedEntry);
     }
-  } else {
-    entries.unshift({
-      id: 'le_' + now,
-      date: today,
-      ...form,
-      sourceType,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
 
-  entries.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  saveEntries(entries);
-  clearComposer();
-  if (status) {
-    status.textContent = 'Saved';
-    status.classList.add('is-saved');
+    entries.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    saveEntries(entries);
+    clearComposer();
+    setStatus('Saved locally — syncing in background…', { isSaved: true });
+    console.info(LOG, 'save complete', savedEntry);
+    loadLearn();
     setTimeout(() => {
-      status.textContent = 'Log what you learned — links embed automatically';
-      status.classList.remove('is-saved');
-    }, 2200);
+      setStatus('Log what you learned — links embed automatically');
+    }, 2800);
+  } catch (err) {
+    console.error(LOG, 'save failed:', err);
+    setStatus(err?.message || 'Could not save entry. Check console for details.', { isError: true });
+  } finally {
+    setSaveBusy(false);
   }
-  loadLearn();
 }
 
 function beginEditEntry(entry) {
@@ -207,9 +278,16 @@ function beginEditEntry(entry) {
 }
 
 function deleteEntry(id) {
-  saveEntries(getEntries().filter(e => e.id !== id));
-  if (learnEditingId === id) clearComposer();
-  loadLearn();
+  try {
+    const next = getEntries().filter(e => e.id !== id);
+    saveEntries(next);
+    if (learnEditingId === id) clearComposer();
+    console.info(LOG, 'deleted entry', id);
+    loadLearn();
+  } catch (err) {
+    console.error(LOG, 'delete failed:', err);
+    setStatus(err?.message || 'Could not delete entry', { isError: true });
+  }
 }
 
 function buildEntryBody(entry) {
@@ -374,9 +452,13 @@ function renderHistory(entries, today) {
 }
 
 export function loadLearn() {
-  if (!deps.getActiveDateString) return;
+  if (typeof deps.getActiveDateString !== 'function') {
+    console.warn(LOG, 'loadLearn skipped — initLearn not called yet');
+    return;
+  }
   const today = deps.getActiveDateString();
   const entries = getEntries();
+  console.info(LOG, 'loadLearn', { today, count: entries.length });
 
   const label = document.getElementById('learnDateLabel');
   if (label) label.textContent = `Today — ${deps.formatDate(today)}`;
@@ -386,13 +468,28 @@ export function loadLearn() {
 }
 
 export function initLearn(dependencies) {
-  deps = dependencies;
+  deps = dependencies || {};
+  if (wired) {
+    console.info(LOG, 'initLearn already wired');
+    return;
+  }
+  wired = true;
 
-  document.getElementById('learnSaveBtn')?.addEventListener('click', commitLearnSave);
+  const saveBtn = document.getElementById('learnSaveBtn');
+  if (!saveBtn) {
+    console.error(LOG, 'initLearn failed — #learnSaveBtn not found in DOM');
+    return;
+  }
+
+  console.info(LOG, 'initLearn wiring handlers');
+  saveBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    commitLearnSave();
+  });
+
   document.getElementById('learnCancelEdit')?.addEventListener('click', () => {
     clearComposer();
-    const status = document.getElementById('learnStatus');
-    if (status) status.textContent = 'Log what you learned — links embed automatically';
+    setStatus('Log what you learned — links embed automatically');
   });
 
   const urlInput = document.getElementById('learnUrlInput');
@@ -411,5 +508,14 @@ export function initLearn(dependencies) {
         commitLearnSave();
       }
     });
+  });
+
+  window.addEventListener('sync-ok', (e) => {
+    if (e.detail?.key !== LEARN_KEY) return;
+    setStatus('Saved and synced', { isSaved: true });
+  });
+  window.addEventListener('sync-failed', (e) => {
+    if (e.detail?.key !== LEARN_KEY) return;
+    setStatus(`Saved locally — cloud sync failed: ${e.detail.message}`, { isError: true });
   });
 }
