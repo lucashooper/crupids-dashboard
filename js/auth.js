@@ -255,9 +255,18 @@ async function finishAuthenticatedSession(session, { migrate = false } = {}) {
   sessionSetupPromise = null;
 }
 
+async function formatAuthError(error) {
+  const msg = error?.message || String(error || 'Auth failed');
+  const status = error?.status;
+  if (status === 429 || /security purposes|rate limit|too many requests/i.test(msg)) {
+    return 'Too many sign-up / sign-in attempts. Wait a few minutes (sometimes up to an hour), then try again — or create the user in Supabase → Authentication → Users.';
+  }
+  return msg;
+}
+
 async function handleSignIn(email, password) {
   if (!supabase) {
-    setAuthStatus('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.', true);
+    setAuthStatus('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or VITE_SUPABASE_ANON_KEY).', true);
     return;
   }
 
@@ -271,7 +280,7 @@ async function handleSignIn(email, password) {
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    setAuthStatus(error.message, true);
+    setAuthStatus(await formatAuthError(error), true);
     return;
   }
 
@@ -297,7 +306,7 @@ async function handleSignUp(email, password) {
 
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) {
-    setAuthStatus(error.message, true);
+    setAuthStatus(await formatAuthError(error), true);
     return;
   }
 
@@ -307,7 +316,8 @@ async function handleSignUp(email, password) {
     return;
   }
 
-  setAuthStatus('Check your email to confirm your account, then sign in.');
+  // Email confirmation is enabled in the Supabase project
+  setAuthStatus('Account created. If email confirmation is on, check your inbox then sign in. Or disable “Confirm email” in Supabase Auth settings for instant access.');
   setAuthMode('signin');
 }
 
