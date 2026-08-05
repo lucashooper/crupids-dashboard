@@ -6,7 +6,7 @@ import {
   setSyncEnabled,
   setSyncedUserId,
   storeGet,
-  storeSet,
+  storeSetLocal,
 } from './optimisticStore.js';
 import {
   clearCachedSession,
@@ -482,7 +482,8 @@ export function wireProfileUpload() {
       img.src = dataUrl;
       img.classList.remove('hidden');
       placeholder.classList.add('hidden');
-      storeSet('profile_picture', dataUrl);
+      // Keep photos local-only — base64 in user_preferences was a major egress source.
+      storeSetLocal('profile_picture', dataUrl);
       syncSettingsProfilePreview();
     };
     reader.readAsDataURL(file);

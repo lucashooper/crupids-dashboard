@@ -1,5 +1,14 @@
--- Crupids Dashboard — run in Supabase SQL Editor (Dashboard → SQL → New query)
--- Requires: Auth enabled; run this entire file once so RLS policies exist for sync.
+-- =============================================================================
+-- Crupids Dashboard — full schema for a NEW Supabase project
+-- =============================================================================
+-- How to use:
+--   1. Open your project → SQL Editor → New query
+--   2. Paste this entire file and Run
+--   3. Authentication → Users → create your account (or sign up from the app)
+--   4. Put Project URL + anon key in crupids-dashboard/.env
+--
+-- Safe to re-run: tables use IF NOT EXISTS; policies are dropped then recreated.
+-- =============================================================================
 
 -- ── Tasks (one row per calendar day, goals stored as JSON array) ──
 create table if not exists public.tasks (
@@ -11,6 +20,11 @@ create table if not exists public.tasks (
 );
 
 alter table public.tasks enable row level security;
+
+drop policy if exists "tasks_select_own" on public.tasks;
+drop policy if exists "tasks_insert_own" on public.tasks;
+drop policy if exists "tasks_update_own" on public.tasks;
+drop policy if exists "tasks_delete_own" on public.tasks;
 
 create policy "tasks_select_own"
   on public.tasks for select
@@ -46,6 +60,11 @@ create table if not exists public.habits (
 
 alter table public.habits enable row level security;
 
+drop policy if exists "habits_select_own" on public.habits;
+drop policy if exists "habits_insert_own" on public.habits;
+drop policy if exists "habits_update_own" on public.habits;
+drop policy if exists "habits_delete_own" on public.habits;
+
 create policy "habits_select_own"
   on public.habits for select
   using (auth.uid() = user_id);
@@ -76,6 +95,11 @@ create table if not exists public.reflections (
 );
 
 alter table public.reflections enable row level security;
+
+drop policy if exists "reflections_select_own" on public.reflections;
+drop policy if exists "reflections_insert_own" on public.reflections;
+drop policy if exists "reflections_update_own" on public.reflections;
+drop policy if exists "reflections_delete_own" on public.reflections;
 
 create policy "reflections_select_own"
   on public.reflections for select
@@ -110,6 +134,11 @@ create table if not exists public.learning_entries (
 
 alter table public.learning_entries enable row level security;
 
+drop policy if exists "learning_entries_select_own" on public.learning_entries;
+drop policy if exists "learning_entries_insert_own" on public.learning_entries;
+drop policy if exists "learning_entries_update_own" on public.learning_entries;
+drop policy if exists "learning_entries_delete_own" on public.learning_entries;
+
 create policy "learning_entries_select_own"
   on public.learning_entries for select
   using (auth.uid() = user_id);
@@ -127,7 +156,7 @@ create policy "learning_entries_delete_own"
   on public.learning_entries for delete
   using (auth.uid() = user_id);
 
--- ── Optional: settings, streaks, stats, day state, profile pic (multi-device parity) ──
+-- ── Small settings blob (title, streaks, stats — NOT profile photos) ──
 create table if not exists public.user_preferences (
   user_id uuid primary key references auth.users (id) on delete cascade,
   data jsonb not null default '{}'::jsonb,
@@ -135,6 +164,11 @@ create table if not exists public.user_preferences (
 );
 
 alter table public.user_preferences enable row level security;
+
+drop policy if exists "user_preferences_select_own" on public.user_preferences;
+drop policy if exists "user_preferences_insert_own" on public.user_preferences;
+drop policy if exists "user_preferences_update_own" on public.user_preferences;
+drop policy if exists "user_preferences_delete_own" on public.user_preferences;
 
 create policy "user_preferences_select_own"
   on public.user_preferences for select
@@ -153,13 +187,15 @@ create policy "user_preferences_delete_own"
   on public.user_preferences for delete
   using (auth.uid() = user_id);
 
--- Helpful indexes
+-- Indexes (hydrate filters by date; sync filters by user)
+create index if not exists tasks_user_date_idx on public.tasks (user_id, task_date);
 create index if not exists tasks_user_updated_idx on public.tasks (user_id, updated_at desc);
 create index if not exists habits_user_updated_idx on public.habits (user_id, updated_at desc);
+create index if not exists reflections_user_date_idx on public.reflections (user_id, reflection_date);
 create index if not exists reflections_user_updated_idx on public.reflections (user_id, updated_at desc);
 create index if not exists learning_entries_user_date_idx on public.learning_entries (user_id, entry_date desc);
 
--- Migration for existing projects (safe to re-run)
+-- Columns for older projects that already had habits without subtasks/emoji
 alter table public.habits add column if not exists subtasks jsonb not null default '[]'::jsonb;
 alter table public.habits add column if not exists subtask_log jsonb not null default '{}'::jsonb;
 alter table public.habits add column if not exists emoji text;

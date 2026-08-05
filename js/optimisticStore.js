@@ -1,13 +1,41 @@
 import { supabase, supabaseConfigured } from './supabaseClient.js';
 import { getCachedSession, isCachedSessionValid, restoreClientSession } from './sessionCache.js';
 
-const SYNC_DEBOUNCE_MS = 450;
-const PREFS_DEBOUNCE_MS = 800;
+const SYNC_DEBOUNCE_MS = 600;
+const PREFS_DEBOUNCE_MS = 2500;
+
+/** Only hydrate / keep this many days of daily rows (tasks + reflections). */
+const HYDRATE_PAST_DAYS = 90;
+const HYDRATE_FUTURE_DAYS = 14;
+
+/** Cap growing habit history / subtask logs pushed to the cloud. */
+const HABIT_HISTORY_KEEP_DAYS = 120;
+
+/**
+ * Prefs that are worth multi-device sync. Everything else stays local-only
+ * (avoids shipping base64 profile pics, UI tab state, and accumulating day_state_*).
+ */
+const SYNCED_PREF_KEYS = new Set([
+  'stats_v1',
+  'dashboard_settings',
+  'dashboard_title',
+  'goal_streak_v1',
+  'best_streak',
+]);
 
 let cachedUserId = null;
 let syncEnabled = false;
 const pendingSync = new Map();
 let prefsTimer = null;
+let sessionReadyPromise = null;
+
+/** Last successfully pushed snapshots — used to skip unchanged full-collection uploads. */
+let lastPushedHabitsJson = null;
+let lastPushedLearningJson = null;
+let lastPushedPrefsJson = null;
+/** Cloud learning ids known after hydrate / last sync (for orphan deletes without full re-read when possible). */
+let knownLearningIds = new Set();
+let knownHabitIds = new Set();
 
 function readLocal(key) {
   try {
@@ -47,8 +75,57 @@ function isPrefKey(key) {
   return !isSyncedDataKey(key);
 }
 
+function isSyncedPrefKey(key) {
+  return SYNCED_PREF_KEYS.has(key);
+}
+
+function isoDateOffset(days) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function trimHistoryObject(history, keepDays) {
+  if (!history || typeof history !== 'object') return {};
+  const cutoff = isoDateOffset(-keepDays);
+  const out = {};
+  for (const [date, val] of Object.entries(history)) {
+    if (date >= cutoff) out[date] = val;
+  }
+  return out;
+}
+
+function habitRowFromLocal(h) {
+  return {
+    id: h.id,
+    user_id: cachedUserId,
+    text: h.text || '',
+    history: trimHistoryObject(h.history || {}, HABIT_HISTORY_KEEP_DAYS),
+    streak: h.streak ?? 0,
+    best_streak: h.bestStreak ?? 0,
+    subtasks: h.subtasks || [],
+    subtask_log: trimHistoryObject(h.subtaskLog || {}, HABIT_HISTORY_KEEP_DAYS),
+    emoji: h.emoji || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function stableJson(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function storeGet(key) {
   return readLocal(key);
+}
+
+/** Write localStorage only — never schedules a cloud sync. */
+export function storeSetLocal(key, value) {
+  writeLocal(key, value);
 }
 
 export function storeSet(key, value) {
@@ -76,6 +153,14 @@ export function getSyncedUserId() {
 
 export function setSyncedUserId(userId) {
   cachedUserId = userId || null;
+  if (!userId) {
+    lastPushedHabitsJson = null;
+    lastPushedLearningJson = null;
+    lastPushedPrefsJson = null;
+    knownLearningIds = new Set();
+    knownHabitIds = new Set();
+    sessionReadyPromise = null;
+  }
 }
 
 export function setSyncEnabled(enabled) {
@@ -96,14 +181,21 @@ async function verifySessionForSync() {
   if (!supabase || !cachedUserId) return false;
   const cached = getCachedSession();
   if (isCachedSessionValid(30_000) && cached?.user?.id === cachedUserId) {
-    await restoreClientSession(cached);
+    if (!sessionReadyPromise) {
+      sessionReadyPromise = restoreClientSession(cached).finally(() => {
+        /* keep promise resolved so we do not re-hit Auth on every push */
+      });
+    }
+    await sessionReadyPromise;
     return true;
   }
   if (isCachedSessionValid(30_000) && cached?.user?.id) {
     cachedUserId = cached.user.id;
-    await restoreClientSession(cached);
+    sessionReadyPromise = restoreClientSession(cached);
+    await sessionReadyPromise;
     return true;
   }
+  sessionReadyPromise = null;
   return false;
 }
 
@@ -111,6 +203,7 @@ function scheduleSync(key, value) {
   if (!syncEnabled || !cachedUserId || !supabaseConfigured || !supabase) return;
 
   if (isPrefKey(key)) {
+    if (!isSyncedPrefKey(key)) return;
     schedulePrefsSync();
     return;
   }
@@ -200,24 +293,51 @@ async function pushKeyToSupabase(key, value) {
 
   if (key === 'habits_v1') {
     const habits = Array.isArray(value) ? value : [];
-    const { error: delErr } = await supabase.from('habits').delete().eq('user_id', cachedUserId);
-    if (delErr) throw delErr;
-    if (habits.length === 0) return;
+    const snapshot = stableJson(
+      habits.map((h) => ({
+        id: h.id,
+        text: h.text,
+        history: trimHistoryObject(h.history || {}, HABIT_HISTORY_KEEP_DAYS),
+        streak: h.streak,
+        bestStreak: h.bestStreak,
+        subtasks: h.subtasks,
+        subtaskLog: trimHistoryObject(h.subtaskLog || {}, HABIT_HISTORY_KEEP_DAYS),
+        emoji: h.emoji,
+      }))
+    );
+    if (snapshot === lastPushedHabitsJson) return;
 
-    const rows = habits.map((h) => ({
-      id: h.id,
-      user_id: cachedUserId,
-      text: h.text || '',
-      history: h.history || {},
-      streak: h.streak ?? 0,
-      best_streak: h.bestStreak ?? 0,
-      subtasks: h.subtasks || [],
-      subtask_log: h.subtaskLog || {},
-      emoji: h.emoji || null,
-      updated_at: new Date().toISOString(),
-    }));
-    const { error } = await supabase.from('habits').upsert(rows, { onConflict: 'user_id,id' });
-    if (error) throw error;
+    const rows = habits.map(habitRowFromLocal);
+    if (rows.length > 0) {
+      const { error } = await supabase.from('habits').upsert(rows, { onConflict: 'user_id,id' });
+      if (error) throw error;
+    }
+
+    const localIds = new Set(habits.map((h) => h.id).filter(Boolean));
+    let cloudIds = knownHabitIds;
+    if (cloudIds.size === 0) {
+      const { data: idRows, error: idErr } = await supabase
+        .from('habits')
+        .select('id')
+        .eq('user_id', cachedUserId);
+      if (idErr) throw idErr;
+      cloudIds = new Set((idRows || []).map((r) => r.id));
+    }
+    const orphanIds = [...cloudIds].filter((id) => !localIds.has(id));
+    if (orphanIds.length > 0) {
+      const { error: delErr } = await supabase
+        .from('habits')
+        .delete()
+        .eq('user_id', cachedUserId)
+        .in('id', orphanIds);
+      if (delErr) throw delErr;
+    } else if (habits.length === 0 && cloudIds.size > 0) {
+      const { error: delErr } = await supabase.from('habits').delete().eq('user_id', cachedUserId);
+      if (delErr) throw delErr;
+    }
+
+    knownHabitIds = localIds;
+    lastPushedHabitsJson = snapshot;
     return;
   }
 
@@ -250,6 +370,9 @@ async function pushKeyToSupabase(key, value) {
       : Array.isArray(value)
         ? value
         : [];
+    const snapshot = stableJson(entries);
+    if (snapshot === lastPushedLearningJson) return;
+
     console.info('[sync] pushing learning entries:', entries.length);
 
     if (entries.length > 0) {
@@ -268,14 +391,17 @@ async function pushKeyToSupabase(key, value) {
       if (error) throw error;
     }
 
-    const { data: cloudRows, error: fetchErr } = await supabase
-      .from('learning_entries')
-      .select('id')
-      .eq('user_id', cachedUserId);
-    if (fetchErr) throw fetchErr;
-
-    const localIds = new Set(entries.map((e) => e.id));
-    const orphanIds = (cloudRows || []).map((r) => r.id).filter((id) => !localIds.has(id));
+    const localIds = new Set(entries.map((e) => e.id).filter(Boolean));
+    let cloudIds = knownLearningIds;
+    if (cloudIds.size === 0) {
+      const { data: idRows, error: idErr } = await supabase
+        .from('learning_entries')
+        .select('id')
+        .eq('user_id', cachedUserId);
+      if (idErr) throw idErr;
+      cloudIds = new Set((idRows || []).map((r) => r.id));
+    }
+    const orphanIds = [...cloudIds].filter((id) => !localIds.has(id));
 
     if (orphanIds.length > 0) {
       const { error: delErr } = await supabase
@@ -284,11 +410,16 @@ async function pushKeyToSupabase(key, value) {
         .eq('user_id', cachedUserId)
         .in('id', orphanIds);
       if (delErr) throw delErr;
-    } else if (entries.length === 0 && (cloudRows || []).length > 0) {
-      const { error: delErr } = await supabase.from('learning_entries').delete().eq('user_id', cachedUserId);
+    } else if (entries.length === 0 && cloudIds.size > 0) {
+      const { error: delErr } = await supabase
+        .from('learning_entries')
+        .delete()
+        .eq('user_id', cachedUserId);
       if (delErr) throw delErr;
     }
 
+    knownLearningIds = localIds;
+    lastPushedLearningJson = snapshot;
     console.info('[sync] learning entries pushed OK');
     window.dispatchEvent(new CustomEvent('sync-ok', { detail: { key: 'learning_log_v1' } }));
     return;
@@ -297,11 +428,9 @@ async function pushKeyToSupabase(key, value) {
 
 function collectPrefsBlob() {
   const data = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && isPrefKey(k)) {
-      data[k] = readLocal(k);
-    }
+  for (const key of SYNCED_PREF_KEYS) {
+    const v = readLocal(key);
+    if (v !== null && v !== undefined) data[key] = v;
   }
   return data;
 }
@@ -309,6 +438,9 @@ function collectPrefsBlob() {
 async function pushPrefsBlob() {
   if (!(await verifySessionForSync())) return;
   const data = collectPrefsBlob();
+  const snapshot = stableJson(data);
+  if (snapshot === lastPushedPrefsJson) return;
+
   const { error } = await supabase.from('user_preferences').upsert(
     {
       user_id: cachedUserId,
@@ -318,17 +450,28 @@ async function pushPrefsBlob() {
     { onConflict: 'user_id' }
   );
   if (error) throw error;
+  lastPushedPrefsJson = snapshot;
 }
 
 export async function pushAllLocalToSupabase() {
   if (!(await verifySessionForSync())) return;
 
+  // Force full push on migrate (ignore change-detection snapshots).
+  lastPushedHabitsJson = null;
+  lastPushedLearningJson = null;
+  lastPushedPrefsJson = null;
+
+  const localHabits = readLocal('habits_v1') || [];
+  knownHabitIds = new Set((Array.isArray(localHabits) ? localHabits : []).map((h) => h.id).filter(Boolean));
+  const localLearn = readLocal('learning_log_v1') || [];
+  knownLearningIds = new Set((Array.isArray(localLearn) ? localLearn : []).map((e) => e.id).filter(Boolean));
+
   const jobs = [];
   storeListKeys('goals:').forEach((key) => {
     jobs.push(pushKeyToSupabase(key, readLocal(key)));
   });
-  jobs.push(pushKeyToSupabase('habits_v1', readLocal('habits_v1') || []));
-  jobs.push(pushKeyToSupabase('learning_log_v1', readLocal('learning_log_v1') || []));
+  jobs.push(pushKeyToSupabase('habits_v1', localHabits));
+  jobs.push(pushKeyToSupabase('learning_log_v1', localLearn));
   storeListKeys('reflection:').forEach((key) => {
     jobs.push(pushKeyToSupabase(key, readLocal(key)));
   });
@@ -393,18 +536,33 @@ export async function hydrateFromSupabase(userId) {
   if (!userId || !supabaseConfigured || !supabase) return;
 
   await restoreClientSession(getCachedSession());
+  sessionReadyPromise = Promise.resolve();
+
+  const fromDate = isoDateOffset(-HYDRATE_PAST_DAYS);
+  const toDate = isoDateOffset(HYDRATE_FUTURE_DAYS);
 
   const [tasksRes, habitsRes, reflRes, learnRes, prefsRes] = await Promise.all([
-    supabase.from('tasks').select('task_date, goals, updated_at').eq('user_id', userId),
-    supabase.from('habits').select('id, text, history, streak, best_streak, subtasks, subtask_log, emoji, updated_at').eq('user_id', userId),
+    supabase
+      .from('tasks')
+      .select('task_date, goals, updated_at')
+      .eq('user_id', userId)
+      .gte('task_date', fromDate)
+      .lte('task_date', toDate),
+    supabase
+      .from('habits')
+      .select('id, text, history, streak, best_streak, subtasks, subtask_log, emoji, updated_at')
+      .eq('user_id', userId),
     supabase
       .from('reflections')
       .select('reflection_date, wins, struggles, tomorrow, summary, updated_at')
-      .eq('user_id', userId),
+      .eq('user_id', userId)
+      .gte('reflection_date', fromDate)
+      .lte('reflection_date', toDate),
     supabase
       .from('learning_entries')
       .select('id, entry_date, title, source_url, source_type, notes, tags, updated_at')
-      .eq('user_id', userId),
+      .eq('user_id', userId)
+      .gte('entry_date', fromDate),
     supabase.from('user_preferences').select('data').eq('user_id', userId).maybeSingle(),
   ]);
 
@@ -435,23 +593,42 @@ export async function hydrateFromSupabase(userId) {
       return {
         id: h.id,
         text: h.text,
-        history: h.history || {},
+        history: trimHistoryObject(h.history || {}, HABIT_HISTORY_KEEP_DAYS),
         streak: h.streak ?? 0,
         bestStreak: h.best_streak ?? 0,
         subtasks,
-        subtaskLog,
+        subtaskLog: trimHistoryObject(subtaskLog, HABIT_HISTORY_KEEP_DAYS),
         emoji: h.emoji ?? local?.emoji,
       };
     });
     writeLocal('habits_v1', habits);
+    knownHabitIds = new Set(habits.map((h) => h.id).filter(Boolean));
+    lastPushedHabitsJson = stableJson(
+      habits.map((h) => ({
+        id: h.id,
+        text: h.text,
+        history: h.history,
+        streak: h.streak,
+        bestStreak: h.bestStreak,
+        subtasks: h.subtasks,
+        subtaskLog: h.subtaskLog,
+        emoji: h.emoji,
+      }))
+    );
+  } else {
+    knownHabitIds = new Set();
+    lastPushedHabitsJson = stableJson([]);
   }
 
   const localLearning = readLocal('learning_log_v1') || [];
   if (!learnRes.error) {
     const mergedLearning = mergeLearningEntries(localLearning, learnRes.data || []);
     writeLocal('learning_log_v1', mergedLearning);
+    knownLearningIds = new Set(mergedLearning.map((e) => e.id).filter(Boolean));
+    lastPushedLearningJson = stableJson(mergedLearning);
     console.info('[sync] learning entries hydrated:', mergedLearning.length);
   } else if (localLearning.length > 0) {
+    knownLearningIds = new Set(localLearning.map((e) => e.id).filter(Boolean));
     console.info('[sync] keeping local learning entries:', localLearning.length);
   }
 
@@ -479,7 +656,11 @@ export async function hydrateFromSupabase(userId) {
 
   const prefs = prefsRes.data?.data;
   if (prefs && typeof prefs === 'object') {
-    Object.entries(prefs).forEach(([k, v]) => writeLocal(k, v));
+    Object.entries(prefs).forEach(([k, v]) => {
+      // Never overwrite local-only keys from a legacy mega-blob (e.g. base64 photos).
+      if (isSyncedPrefKey(k)) writeLocal(k, v);
+    });
+    lastPushedPrefsJson = stableJson(collectPrefsBlob());
   }
 
   window.dispatchEvent(new CustomEvent('data-hydrated'));
