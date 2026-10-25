@@ -49,6 +49,8 @@ npm run dev
 
 Visit `http://localhost:5173/dashboard.html`
 
+The app runs in **local-only mode** by default: no login, everything is saved in your browser's localStorage. To turn Supabase login and cloud sync back on, set `VITE_LOCAL_ONLY=false` (in `.env` or your Netlify environment variables) and rebuild.
+
 ### Build for Production
 
 ```bash

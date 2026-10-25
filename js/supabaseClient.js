@@ -6,7 +6,11 @@ const anonKey = (
   import.meta.env.VITE_SUPABASE_ANON_KEY
 )?.trim();
 
-export const supabaseConfigured = Boolean(url && anonKey);
+// Local-only mode (default): no sign-in, data stays in this browser's localStorage.
+// Set VITE_LOCAL_ONLY=false to re-enable Supabase login + cloud sync.
+export const localOnly = import.meta.env.VITE_LOCAL_ONLY !== 'false';
+
+export const supabaseConfigured = !localOnly && Boolean(url && anonKey);
 
 export const supabase = supabaseConfigured
   ? createClient(url, anonKey, {
